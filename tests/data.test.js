@@ -1,4 +1,5 @@
-// Kontrola data/questions.js: soubor jde načíst, žádná prázdná ani zdvojená zadání a odpovědi.
+// Kontrola dat: data/questions.js (žádná prázdná ani zdvojená zadání a odpovědi),
+// data/higher-lower.js a data/estimates.js (formát, kladné hodnoty, žádné duplicity, minimální počty).
 // Spuštění: npm test
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -36,6 +37,58 @@ P.forEach(([, q, a]) => {
 // Témata, kam se dá napsat cokoli, do hry nepatří.
 for (const [, q] of P) if (/^Jmenuj (věc|něco)\b/.test(q)) errs.push(`${q}: neohraničené téma`);
 
+// ---------- Vyšší, nebo nižší? (data/higher-lower.js) ----------
+new Function("window", readFileSync(root + "data/higher-lower.js", "utf8"))(window);
+const HL = window.KRILLION_HL;
+let hlN = 0;
+if (!HL || typeof HL.V !== "object" || !Array.isArray(HL.G)) errs.push("KRILLION_HL chybí nebo má špatný formát");
+else {
+  for (const [k, d] of Object.entries(HL.V))
+    if (!Array.isArray(d) || typeof d[0] !== "string" || !d[0].endsWith("?") || typeof d[1] !== "string") errs.push(`HL veličina ${k}: špatná otázka nebo jednotka`);
+  const names = new Map(), perV = new Map();
+  HL.G.forEach((g, gi) => {
+    const at = `HL skupina ${gi} (${g.v})`;
+    if (!HL.V[g.v]) errs.push(`${at}: neznámá veličina`);
+    if (typeof g.c !== "string" || !g.c) errs.push(`${at}: chybí kategorie`);
+    if (g.min !== undefined && !(g.min >= 1.05)) errs.push(`${at}: min musí být aspoň 1,05 (rozdíl 5 %)`);
+    if (!Array.isArray(g.i) || !g.i.length) { errs.push(`${at}: žádné položky`); return; }
+    for (const it of g.i) {
+      const [n, v, note] = it;
+      if (typeof n !== "string" || !n || n !== n.trim()) errs.push(`${at}: špatný název „${n}“`);
+      if (typeof v !== "number" || !Number.isFinite(v) || (!g.y && !(v > 0))) errs.push(`${at}: ${n} má špatnou hodnotu ${v}`);
+      if (g.y && !(Number.isInteger(v) && v < new Date().getFullYear())) errs.push(`${at}: ${n} – rok vzniku ${v} není v minulosti`);
+      if (note !== undefined && (typeof note !== "string" || !note)) errs.push(`${at}: ${n} – poznámka musí být text`);
+      if (!g.s && note === undefined && g.v !== "pocet") errs.push(`${at}: ${n} – chybí zdroj nebo poznámka`);
+      const key = g.v + ":" + norm(n);
+      if (names.has(key)) errs.push(`HL ${g.v}: „${n}“ je dvakrát`);
+      names.set(key, 1); hlN++;
+      perV.set(g.v, (perV.get(g.v) || 0) + 1);
+    }
+  });
+  for (const k of Object.keys(HL.V)) if ((perV.get(k) || 0) < 3) errs.push(`HL veličina ${k}: méně než 3 položky`);
+  if (hlN < 400) errs.push(`HL: jen ${hlN} položek, cíl je aspoň 400`);
+}
+
+// ---------- Odhad (data/estimates.js) ----------
+new Function("window", readFileSync(root + "data/estimates.js", "utf8"))(window);
+const E = window.KRILLION_EST;
+if (!Array.isArray(E)) errs.push("KRILLION_EST chybí");
+else {
+  const seenQ = new Set();
+  E.forEach((row, n) => {
+    const [c, q, v, u, note] = row;
+    if (row.length < 4 || row.length > 5) { errs.push(`odhad ${n}: špatný formát`); return; }
+    if (typeof c !== "string" || !c) errs.push(`${q}: chybí kategorie`);
+    if (typeof q !== "string" || !q.endsWith("?") || q !== q.trim()) errs.push(`odhad ${n}: otázka „${q}“ musí končit otazníkem`);
+    if (!(typeof v === "number" && Number.isFinite(v) && v > 0)) errs.push(`${q}: hodnota musí být kladné číslo (je ${v})`);
+    if (typeof u !== "string") errs.push(`${q}: jednotka musí být text`);
+    if (note !== undefined && (typeof note !== "string" || !note)) errs.push(`${q}: poznámka musí být text`);
+    if (seenQ.has(norm(q))) errs.push(`${q}: otázka je dvakrát`);
+    seenQ.add(norm(q));
+  });
+  if (E.length < 300) errs.push(`Odhad: jen ${E.length} otázek, cíl je aspoň 300`);
+}
+
 const total = P.reduce((s, r) => s + r[2].split(",").length, 0);
 if (errs.length) { console.log(errs.map((e) => "✗ " + e).join("\n")); console.log(`\n${errs.length} chyb`); process.exit(1); }
-console.log(`Data v pořádku: ${P.length} témat, ${total} odpovědí`);
+console.log(`Data v pořádku: ${P.length} témat, ${total} odpovědí · vyšší/nižší ${hlN} položek · odhad ${E.length} otázek`);
