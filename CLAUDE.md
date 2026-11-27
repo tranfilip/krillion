@@ -3,6 +3,8 @@
 Česká trivia hra bez frameworku a bez build kroku: čisté HTML/CSS/JS, nasazení na Vercel.
 
 ## Jak to funguje
+- `index.html` – jen kostra stránky; načítá `styles.css` a skripty v pořadí `src/shim.js` → `data/questions.js` → `src/game.js`. CSS ani JS sem zpátky nevkládej.
+- `styles.css` – vzhled (tekuté sklo, HUD, karty). Na dotykových zařízeních `@media(pointer:coarse)` vypíná `backdrop-filter`.
 - `src/game.js` – jeden IIFE blok. Části: rozpoznávání odpovědí (`norm`, `lev`, `strong`, `weak`, `localJudge`, `looseLocal`), stav a paměť (`st`, `save`, localStorage), napojení na Clauda (`askAI`, `gen`, `aiJudge`), vykreslování oceánu na canvas (`draw`, `creature`, `diver`), herní smyčka (`start`, `ask`, `submit`, `win`, `lose`, `end`).
 - `data/questions.js` – `window.KRILLION_DATA`: `[obtížnost 1–4, zadání, "odp1|alias,odp2,..."]`, odpovědi seřazené od nejčastější po nejvzácnější (pořadí = vzácnost 1–5).
 - `src/shim.js` – emuluje `window.claude.use("sample")` z claude.ai přes `fetch("/api/ai")`. `db` a `user` vrací null → stav jen v localStorage.
