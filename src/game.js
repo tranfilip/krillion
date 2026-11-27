@@ -103,6 +103,78 @@ const qWords=q=>norm(q).split(" ").filter(w=>w.length>=3&&!QSTOP.has(w)).map(w=>
 function tooSimilar(q,list){const a=new Set(qWords(q));if(!a.size)return true;
  for(const o of list){const b=new Set(qWords(o));if(!b.size)continue;let k=0;for(const w of a)if(b.has(w))k++;if(k/Math.min(a.size,b.size)>=.6)return true}return false}
 /* ---------- konec výběru ---------- */
+
+/* ---------- režimy: čísla, hodnocení a výběr (testuje tests/modes.test.js) ---------- */
+const HLD=window.KRILLION_HL||{V:{},G:[]},ESTD=window.KRILLION_EST||[],MKEY="krillion-rezimy1",YNOW=new Date().getFullYear();
+// položky „Vyšší, nebo nižší?“: veličina (otázka + jednotka) a kategorie se dědí ze skupiny; u y:1 je hodnota rok vzniku → stáří
+const HLI=[];for(const g of HLD.G||[])for(const[n,val,note]of g.i)HLI.push({id:g.v+":"+n,v:g.v,c:g.c,n,val:g.y?YNOW-val:val,lv:Math.log(g.y?YNOW-val:val),yr:g.y?val:null,note:note||g.s||"",a:!!g.a,min:Math.max(1.05,g.min||1.05)});
+const HLV=new Map();for(const x of HLI){if(!HLV.has(x.v))HLV.set(x.v,[]);HLV.get(x.v).push(x)}
+const ESTQ=ESTD.map(([c,q,v,u,note])=>({c,q,v,u:u||"",note:note||""}));
+/* číslo od hráče: „1 500“, „1,5 mil“, „2 tis.“, „3k“, „1.500.000“, „2,5 miliardy“, „206 kostí“ */
+const MULTW=[[/^(bilion|bil)/,1e12],[/^(miliard|mld|md)/,1e9],[/^(milion|mil|mio)/,1e6],[/^(tis|k$)/,1e3]];
+function parseNum(s){let t=String(s??"").toLowerCase().replace(/[\s  '’_]/g,"").replace(/^(~|≈|asi|cca|zhruba|přibližně|priblizne)/,"");
+ const m=t.match(/^(\d[\d.,]*)(.*)$/);let num="1",rest=t;if(m){num=m[1].replace(/[.,]+$/,"");rest=m[2]}else if(!t)return NaN;
+ const dots=(num.match(/\./g)||[]).length,commas=(num.match(/,/g)||[]).length;
+ if(dots&&commas){const dec=num.lastIndexOf(".")>num.lastIndexOf(",")?".":",";num=num.split(dec==="."?",":".").join("").replace(dec,".")}
+ else if(commas)num=/^\d{1,3}(,\d{3}){2,}$/.test(num)?num.replace(/,/g,""):commas===1?num.replace(",","."):"x"; // čárka = desetinná (česky), 1,500,000 = tisíce
+ else if(dots)num=/^\d{1,3}(\.\d{3})+$/.test(num)?num.replace(/\./g,""):dots===1?num:"x"; // 1.500 = tisíc, 1.5 = desetinné
+ let v=/^\d+(\.\d+)?$/.test(num)?parseFloat(num):NaN;if(!isFinite(v))return NaN;
+ rest=rest.replace(/^[.,]+/,"");const e=rest.match(/^e(\d{1,2})/);
+ if(e)v*=10**+e[1];else if(rest){const w=MULTW.find(([re])=>re.test(rest));if(w)v*=w[1];else if(!m)return NaN}
+ return v>0&&isFinite(v)?v:NaN}
+/* hodnocení odhadu podle poměru tipu a skutečnosti (logaritmicky, souměrně: 2× víc = 2× míň):
+   do ±5 % maximum 1 000 m, do ±25 % 800–450 m, do 2× 400–100 m, dál nic */
+const ET=[1/.95,1/.75,2];
+function estScore(g,t){if(!(g>0)||!(t>0))return{m:0,k:4,q:Infinity};const q=Math.max(g/t,t/g),L=Math.log(q),l=ET.map(Math.log),e=1e-9;let m=0,k=3;
+ if(L<=l[0]+e){m=1000;k=0}else if(L<=l[1]+e){m=800-350*(L-l[0])/(l[1]-l[0]);k=1}else if(L<=l[2]+e){m=400-300*(L-l[1])/(l[2]-l[1]);k=2}
+ return{m:Math.round(m/10)*10,k,q}}
+const fmtR=x=>x.toLocaleString("cs-CZ",{maximumFractionDigits:x<10?1:0});
+function estDiff(g,t){if(!(g>0))return"bez odpovědi";const r=g/t;if(Math.abs(r-1)<.005)return"přesně";
+ if(r>=1000||r<=.001)return`přes 1 000× ${r>1?"víc":"míň"}`;if(r>=2)return`${fmtR(r)}× víc`;if(r<=.5)return`${fmtR(1/r)}× míň`;const p=Math.max(1,Math.round(Math.abs(r-1)*100));return`o ${p} % ${r>1?"víc":"míň"}`}
+/* čísla pro lidi: 1,38 mil. / 2,92 mld. jen když se tím nic neztratí, jinak celé číslo s mezerami */
+function fmtNum(v){const a=Math.abs(v),L=(x,d)=>x.toLocaleString("cs-CZ",{maximumFractionDigits:d});
+ for(const[k,s]of[[1e12," bil."],[1e9," mld."],[1e6," mil."]])if(a>=k){const x=v/k;if(Math.abs(x*1000-Math.round(x*1000))<1e-6||a>=1e12)return L(x,3)+s;break}
+ if(a>=1000)return L(Math.round(v),0);if(a>=1)return L(v,3);if(!a)return"0";
+ return L(v,Math.min(8,1-Math.floor(Math.log10(a))+2))}
+const plLet=n=>n===1?"rok":Number.isInteger(n)&&n>=2&&n<=4?"roky":Number.isInteger(n)?"let":"roku";
+// hodnota s jednotkou: malé kilogramy jako gramy, velké vzdálenosti v km, „let“ ve správném tvaru
+function fmtU(v,u){if(u==="kg"&&v<1)return v<.001?fmtNum(v*1e6)+" mg":fmtNum(v*1000)+" g";if(u==="m"&&v>=1e5)return fmtNum(v/1000)+" km";
+ if(u==="let")u=plLet(v);return fmtNum(v)+(u?" "+u:"")}
+const yrTxt=y=>y<0?`${-y} př. n. l.`:String(y);
+function fmtHL(x,val=x.val){const u=(HLD.V[x.v]||[])[1]||"";return(x.a?"~":"")+fmtU(val,u)+(x.yr!==null?` (${yrTxt(x.yr)})`:"")}
+/* paměť režimů (rekordy, použité páry a otázky) – zvlášť od Krillion režimu, přežije reload */
+function loadModes(ls){const s={hl:{best:0,runs:0,pairs:[],it:{}},est:{best:0,runs:0,cnt:{},last:{},seq:0}},obj=x=>x&&typeof x==="object"&&!Array.isArray(x);
+ let r=null;try{r=JSON.parse(ls.getItem(MKEY)||"null")}catch(e){}
+ if(obj(r))for(const k of["hl","est"])if(obj(r[k]))Object.assign(s[k],r[k]);
+ const h=s.hl,e=s.est;h.best=+h.best||0;h.runs=+h.runs||0;h.pairs=Array.isArray(h.pairs)?h.pairs.filter(x=>typeof x==="string"):[];if(!obj(h.it))h.it={};
+ e.best=+e.best||0;e.runs=+e.runs||0;e.seq=+e.seq||0;if(!obj(e.cnt))e.cnt={};if(!obj(e.last))e.last={};return s}
+function saveModes(ls,s){try{ls.setItem(MKEY,JSON.stringify(s));return true}catch(e){return false}}
+/* „Vyšší, nebo nižší?“: cílový poměr hodnot se s každou otázkou zmenšuje (≈4,3× → 1,1×), takže hra přitvrzuje.
+   Pár: stejná veličina, poměr ≥ 1,05 (a ≥ min skupiny), žádná položka dvakrát za ponor, pár se mezi hrami neopakuje,
+   méně použité položky mají přednost a veličiny se střídají. */
+const hlTarget=n=>1.06+3.2*Math.exp(-(n-1)/7);
+const hlKey=(a,b)=>a.id<b.id?a.id+"|"+b.id:b.id+"|"+a.id;
+const hlPoints=r=>Math.round((50+150*Math.max(0,Math.min(1,1-Math.log(r)/Math.log(4))))/10)*10;
+function pickPair(ms,run,rnd=Math.random){const h=ms.hl,R=Math.log(hlTarget(run.n||1));
+ for(let pass=0;pass<2;pass++){const used=new Set(h.pairs);let best=null,bs=Infinity;
+  const order=[...HLV.keys()].map(v=>{const w=Math.sqrt(HLV.get(v).length)/(1+3*(run.vc[v]||0))*(run.lastV.includes(v)?.01:1);return{v,k:Math.pow(rnd(),1/w)}}).sort((a,b)=>b.k-a.k);
+  order.forEach(({v},rank)=>{const L=HLV.get(v).filter(x=>!run.items.has(x.id)),cnt=x=>h.it[x.id]||0,c0=Math.min(...L.map(cnt));
+   const base=rank*.18,ca=L.map(x=>.25*(cnt(x)-c0));if(base>=bs)return;
+   for(let i=0;i<L.length;i++){const a=L[i];if(!(a.val>0))continue;for(let j=i+1;j<L.length;j++){const b=L[j];if(!(b.val>0))continue;const lr=Math.abs(a.lv-b.lv);
+    if(lr<Math.log(Math.max(a.min,b.min))-1e-12)continue;
+    const s=Math.abs(lr-R)+ca[i]+ca[j]+(a.c!==b.c?.12:0)+base+rnd()*.1;if(s<bs&&!used.has(hlKey(a,b))){bs=s;best={v,a,b,r:Math.exp(lr)}}}}});
+  if(best){const{v,a,b}=best;h.pairs.push(hlKey(a,b));if(h.pairs.length>4000)h.pairs=h.pairs.slice(-4000);h.it[a.id]=(h.it[a.id]||0)+1;h.it[b.id]=(h.it[b.id]||0)+1;
+   run.items.add(a.id);run.items.add(b.id);run.vc[v]=(run.vc[v]||0)+1;run.lastV=[v,...run.lastV].slice(0,2);best.side=rnd()<.5?[a,b]:[b,a];return best}
+  h.pairs=[]} // všechny páry už padly → paměť párů od začátku
+ return null}
+/* „Odhad“: otázka se zopakuje až po vystřídání všech ostatních (i mezi hrami), obory se v ponoru střídají */
+function pickEst(ms,run,rnd=Math.random){const e=ms.est,cnt=x=>e.cnt[x.q]||0,last=x=>e.last[x.q]||0;
+ let pool=ESTQ.filter(x=>!run.qs.has(x.q));if(!pool.length)pool=ESTQ.slice();
+ const c0=Math.min(...pool.map(cnt));pool=pool.filter(x=>cnt(x)===c0);
+ const recent=run.cats.slice(-3),fresh=pool.filter(x=>!recent.includes(x.c));if(fresh.length)pool=fresh;
+ const l0=Math.min(...pool.map(last));pool=pool.filter(x=>last(x)===l0);
+ const p=pool[Math.floor(rnd()*pool.length)];e.seq++;e.cnt[p.q]=c0+1;e.last[p.q]=e.seq;run.qs.add(p.q);run.cats.push(p.c);return p}
+/* ---------- konec režimů ---------- */
 let st=loadState(localStorage);
 /* trvalá paměť: úložiště artefaktu (přežije zavření aplikace), záloha v prohlížeči */
 let dbRef=null,remoteBusy=false,remoteDirty=false,remoteT=null;
@@ -427,34 +499,44 @@ let run=null,timer=null,left=25,limit=25,busy=false,lastZone="Sluneční zóna",
 const ARROW='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>';
 const LVN={1:"Lehká",2:"Střední",3:"Těžká",4:"Expert"};
 const lvlFor=n=>n<=3?1:n<=7?2:n<=12?3:4;
-function swap(html,after){card.classList.add("out");setTimeout(()=>{card.innerHTML=html;card.classList.remove("out","in");void card.offsetWidth;card.classList.add("in");after&&after()},170)}
-function o2(effect){const n=run?run.o2:3,e=$("o2");e.innerHTML=[0,1,2].map(i=>`<i class="${i>=n?"off":""}${effect&&effect.i===i?" "+effect.c:""}"></i>`).join("");e.classList.toggle("low",n===1)}
+function swap(html,after){card.classList.add("out");setTimeout(()=>{stage.scrollTop=0;card.innerHTML=html;card.classList.remove("out","in");void card.offsetWidth;card.classList.add("in");after&&after()},170)}
+function o2(effect){const e=$("o2");if(run&&run.mode==="est"){e.classList.remove("low");e.innerHTML=`<span class="qc">${Math.max(1,Math.min(run.n,EST_N))}<small> / ${EST_N}</small></span>`;return}
+ const n=run?run.o2:3;e.innerHTML=[0,1,2].map(i=>`<i class="${i>=n?"off":""}${effect&&effect.i===i?" "+effect.c:""}"></i>`).join("");e.classList.toggle("low",n===1)}
 function toast(s){const e=$("toast");e.textContent=s;e.classList.add("on");clearTimeout(e._t);e._t=setTimeout(()=>e.classList.remove("on"),2600)}
 function setDepth(m,slow){ease=slow?2600:1000;if(m>target){kick=1;const d=$("dm");d.classList.add("bump");setTimeout(()=>d.classList.remove("bump"),350)}target=m;const z=zoneOf(m);if(z!==lastZone&&m>0){lastZone=z;setTimeout(()=>toast(z),1000)}}
-function home(){run=null;o2();setDepth(0,true);stage.classList.remove("play");
- swap(`<h1>Krillion</h1><p class="lede">Vzácnější odpověď tě vezme hlouběji. Otázky postupně přitvrzují. Ponor končí, až dojde kyslík.</p><div class="rules"><span><i></i><i></i><i></i>&nbsp;3 bubliny</span><span>chyba = −1</span><span>Jeden z krilionu = +1</span></div><button class="btn" id="go">Ponořit se</button>${st.best?`<div class="meta"><span>Rekord <b>${fmt(st.best)}</b></span><span>Ponorů <b>${st.runs}</b></span></div>`:""}`,()=>{$("go").onclick=start})}
+/* úvodní obrazovka: výběr režimu (loď, moře i seskok jsou pro všechny režimy stejné) */
+function home(){run=null;o2();setDepth(0,true);stage.classList.remove("play");card.onclick=null;clearInterval(timer);clearTimeout(advT);advT=null;
+ const rec=b=>b?`Rekord <b>${fmt(b)}</b>`:"Bez rekordu",M=[
+  ["hl","#8ef0c6","Vyšší, nebo nižší?","Ťukni na to, čeho je víc. Rozdíly se zmenšují, chyba stojí bublinu kyslíku.",ms.hl.best],
+  ["est","#63b6ff","Odhad","Deset otázek, odpovíš číslem. Čím přesnější odhad, tím hlouběji.",ms.est.best],
+  ["kr","#ffd36e","Krillion","Napiš odpověď. Čím vzácnější, tím hlouběji. Ponor končí, až dojde kyslík.",st.best]];
+ swap(`<h1>Krillion</h1><p class="lede">Vyber si, jak se dnes ponoříš.</p><div class="modes">${M.map(([k,c,t,d,b],i)=>`<button class="mode" type="button" data-m="${k}" style="--c:${c};--i:${i}"><span class="mt">${t}</span><span class="mr">${rec(b)}</span><span class="md">${d}</span></button>`).join("")}</div>`,
+  ()=>{for(const b of card.querySelectorAll(".mode"))b.onclick=()=>({hl:startHL,est:startEst,kr:start})[b.dataset.m]()})}
 function nextPrompt(l){gen(l);gen(Math.min(4,l+1));
  while(aiQ[l].length&&tooSimilar(aiQ[l][0].q,st.used.slice(-400)))aiQ[l].shift(); // starší fronta od Clauda
  if(aiQ[l].length&&Math.random()<.55){const i=Math.max(0,aiQ[l].findIndex(p=>!run.fams.has("dom:"+p.d)));const p=aiQ[l].splice(i,1)[0];run.asked.add(p.q);run.fams.add("dom:"+p.d);run.lastKind="ai";st.used.push(p.q);save();return{q:p.q,ai:true}}
  const pick=pickTopic(st,run,l);save();return{q:pick.q,ai:false}}
-function start(){run={o2:3,pts:0,n:0,ans:[],best:null,asked:new Set(),fams:new Set()};lastZone="Sluneční zóna";target=0;o2();
+/* společný seskok z lodi pro všechny režimy. Karta se vytvoří hned při tapnutí a input dostane fokus v rámci
+   tapnutí (jinak iOS neotevře klávesnici); do dopadu je karta skrytá třídou .stage.intro. */
+function launch(html,setup,first){lastZone="Sluneční zóna";target=0;o2();card.onclick=null;clearInterval(timer);clearTimeout(advT);advT=null;busy=false;
  // poloha lodi a hladiny se změří ještě s úvodní kartou, pak se karta přepne do herního rozložení
- const done=()=>{document.removeEventListener("pointerdown",skip,true);stage.classList.remove("intro");card.classList.remove("in");void card.offsetWidth;card.classList.add("in");ask()};
+ const done=()=>{document.removeEventListener("pointerdown",skip,true);stage.classList.remove("intro");card.classList.remove("in");void card.offsetWidth;card.classList.add("in");first()};
  if(RM){S.m="dive";S.co=0;S.dv=null;depth=0}else{beginRoll(done);stage.classList.add("intro")}
- stage.classList.add("play");card.classList.remove("out","in");
- card.innerHTML=`<div class="prog" id="prog"><i id="bar"></i></div><div class="panel" id="pn"></div>
- <form class="glass field" id="f" autocomplete="off"><input id="a" placeholder="Tvoje odpověď" aria-label="Odpověď" enterkeyhint="send" autocapitalize="sentences" autocorrect="off" spellcheck="false"><button class="go" id="sb" aria-label="Odeslat">${ARROW}</button></form>
- <div class="hint" id="h"></div><button class="skip" id="sk" type="button">Přeskočit</button>`;
- void card.offsetWidth;card.classList.add("in");
- $("f").onsubmit=e=>{e.preventDefault();if(advT){advance();return}submit()};$("sk").onclick=()=>{if(!busy)lose("Přeskočeno",null)};
- $("a").addEventListener("input",e=>{if(advT)e.target.value=""});
- gen(1);gen(2);
+ stage.classList.add("play");card.classList.remove("out","in");card.innerHTML=html;void card.offsetWidth;card.classList.add("in");
+ const a=setup&&setup();
  // iOS otevře klávesnici jen při fokusu v rámci tapnutí → fokus hned teď, karta je zatím neviditelná
- const a=$("a");try{a.focus({preventScroll:true})}catch(e){}
- if(RM){ask();return}
+ if(a)try{a.focus({preventScroll:true})}catch(e){}
+ if(RM){first();return}
  // tapnutí během seskoku ho zrychlí (doběhne plynule za zlomek sekundy), fokus inputu zůstane
- function skip(e){if(e.target&&e.target.closest&&e.target.closest("#f"))return;e.preventDefault();try{a.focus({preventScroll:true})}catch(_){}S.sp=6}
+ function skip(e){if(a&&e.target&&e.target.closest&&e.target.closest("#f"))return;e.preventDefault();if(a)try{a.focus({preventScroll:true})}catch(_){}S.sp=6}
  document.addEventListener("pointerdown",skip,true)}
+function start(){run={mode:"kr",o2:3,pts:0,n:0,ans:[],best:null,asked:new Set(),fams:new Set()};
+ launch(`<div class="prog" id="prog"><i id="bar"></i></div><div class="panel" id="pn"></div>
+ <form class="glass field" id="f" autocomplete="off"><input id="a" placeholder="Tvoje odpověď" aria-label="Odpověď" enterkeyhint="send" autocapitalize="sentences" autocorrect="off" spellcheck="false"><button class="go" id="sb" aria-label="Odeslat">${ARROW}</button></form>
+ <div class="hint" id="h"></div><button class="skip" id="sk" type="button">Přeskočit</button>`,()=>{
+  $("f").onsubmit=e=>{e.preventDefault();if(advT){advance();return}submit()};$("sk").onclick=()=>{if(!busy)lose("Přeskočeno",null)};
+  $("a").addEventListener("input",e=>{if(advT)e.target.value=""});
+  gen(1);gen(2);return $("a")},ask)}
 function ask(){busy=false;advT=null;run.n++;run.lvl=lvlFor(run.n);const p=nextPrompt(run.lvl);run.q=p.q;run.ai=p.ai;
  limit=run.n>16?Math.max(10,15-(run.n-16)*.5):({1:25,2:21,3:18,4:15})[run.lvl];left=limit;
  const pn=$("pn");pn.className="panel";pn.onclick=null;pn.innerHTML=`<div style="animation:fade .45s both"><div class="qn">#${run.n} · ${LVN[run.lvl]}</div>${(()=>{const m=run.q.match(/^(.*) \((na písmeno .+|aspoň \d+ písmen)\)$/);return m?`<div class="q">${esc(m[1])}</div><div class="tag">${esc(m[2])}</div>`:`<div class="q">${esc(run.q)}</div>`})()}</div>`;
@@ -487,10 +569,103 @@ function end(){clearInterval(timer);const a=$("a");a&&a.blur();stage.classList.r
  <div class="tcap">Vzácnost odpovědí (1 = běžná, 5 = nejvzácnější, ✕ = chyba)</div><div class="chips">${run.ans.map((v,i)=>`<span style="--i:${i};${v?`color:${TIERS[v-1].c};box-shadow:inset 0 0 0 1px ${TIERS[v-1].c}66`:"color:rgba(255,255,255,.35)"}">${v||"✕"}</span>`).join("")}</div>
  ${(()=>{const ok=run.ans.filter(v=>v);return ok.length?`<div class="avg">Průměrná vzácnost <b>${(ok.reduce((a,b)=>a+b,0)/ok.length).toLocaleString("cs-CZ",{maximumFractionDigits:1,minimumFractionDigits:1})} / 5</b></div>`:""})()}
  <div class="meta"><span>Otázek <b>${run.n}</b></span>${T?`<span>Nejvzácnější <b style="color:${T.c}">${esc(run.best.a)}</b></span>`:""}<span>Rekord <b>${fmt(st.best)}</b></span></div>
- <div class="row"><button class="btn" id="nx">Ponořit se znovu</button><button class="btn g" id="cp">Sdílet</button></div></div>`,()=>{
+ <div class="row"><button class="btn" id="nx">Ponořit se znovu</button><button class="btn g" id="cp">Sdílet</button></div><button class="skip" id="md" type="button">Jiný režim</button></div>`,()=>{
   if(rec&&m>0)burst("#ffd36e",70);
-  $("nx").onclick=start;
+  $("nx").onclick=start;$("md").onclick=home;
   $("cp").onclick=async()=>{const sq=["⬛","🟩","🟧","🟦","🟪","🟨"];const txt=`Krillion · ${fmt(m)} · ${z}\n${run.ans.map(v=>sq[v]).join("")}`;try{await navigator.clipboard.writeText(txt);toast("Zkopírováno")}catch(e){toast("Kopírování nejde")}}});
  const r0=run;setTimeout(()=>{if(run===r0&&S.m==="dive")beginAscent()},700);run.o2=0}
+/* ---------- společné pro nové režimy ---------- */
+let ms=loadModes(localStorage);const saveM=()=>saveModes(localStorage,ms);
+const HL_T=15,EST_N=10,EST_T=30;
+function tick(sec,onEnd){limit=left=sec;clearInterval(timer);const b0=$("bar");if(b0)b0.style.transform="";$("prog")&&$("prog").classList.remove("low");
+ timer=setInterval(()=>{const b=$("bar");if(!b)return;$("prog").classList.toggle("pause",busy);if(busy)return;left-=.1;b.style.transform=`scaleX(${Math.max(left/limit,0)})`;$("prog").classList.toggle("low",left<5);if(left<=0){clearInterval(timer);onEnd()}},100)}
+function ouch(){hurt=1;const f=$("flash");f.classList.add("on");setTimeout(()=>f.classList.remove("on"),60);try{navigator.vibrate&&navigator.vibrate(60)}catch(e){}}
+function share(btn,txt){btn.onclick=async()=>{try{await navigator.clipboard.writeText(txt);toast("Zkopírováno")}catch(e){toast("Kopírování nejde")}}}
+function ascendLater(){const r0=run;setTimeout(()=>{if(run===r0&&S.m==="dive")beginAscent()},700)}
+const endRow=`<div class="row"><button class="btn" id="nx">Ponořit se znovu</button><button class="btn g" id="cp">Sdílet</button></div><button class="skip" id="md" type="button">Jiný režim</button>`;
+const pct=r=>r<2?`${Math.max(5,Math.round((r-1)*100))} %`:`${fmtR(r)}×`;
+
+/* ---------- režim „Vyšší, nebo nižší?“ ---------- */
+function startHL(){run={mode:"hl",o2:3,pts:0,n:0,ok:0,res:[],items:new Set(),vc:{},lastV:[]};
+ launch(`<div class="prog" id="prog"><i id="bar"></i></div><div class="panel hlq" id="pn"></div><div class="duel" id="duel"></div><div class="hint hln" id="h"></div>`,null,askHL)}
+function askHL(){busy=false;advT=null;card.onclick=null;run.n++;const p=pickPair(ms,run);saveM();if(!p){endHL();return}run.p=p;
+ const[a,b]=p.side,V=HLD.V[p.v]||["Čeho je víc?",""],cat=a.c===b.c?a.c:a.c+" × "+b.c;
+ const pn=$("pn");pn.className="panel hlq";pn.innerHTML=`<div style="animation:fade .45s both"><div class="qn">#${run.n} · ${esc(cat)}</div><div class="q">${esc(V[0])}</div></div>`;
+ $("duel").innerHTML=[a,b].map((x,i)=>`<button class="opt" type="button" id="o${i}" style="--i:${i}"><b>${esc(x.n)}</b><span class="val" id="v${i}"></span></button>${i?"":'<span class="vs">nebo</span>'}`).join("");
+ $("o0").onclick=()=>pickHL(0);$("o1").onclick=()=>pickHL(1);$("h").textContent="";
+ tick(HL_T,()=>pickHL(-1))}
+// hodnota se „načítá“ od nuly (krátká animace po odpovědi)
+function countUp(el,x){const D=RM?0:750,t0=performance.now(),round=Number.isInteger(x.val)||x.val>=10;
+ const f=t=>{const k=D?Math.min(1,Math.max(0,(t-t0)/D)):1,e=1-(1-k)**3,v=k>=1?x.val:round?Math.round(x.val*e):x.val*e;el.textContent=fmtHL(x,v);if(k<1)requestAnimationFrame(f)};requestAnimationFrame(f)}
+function pickHL(i){if(busy||!run||run.mode!=="hl")return;busy=true;clearInterval(timer);
+ const{side:[a,b],r}=run.p,w=a.val>b.val?0:1,ok=i===w,W=[a,b][w];
+ [a,b].forEach((x,k)=>{const o=$("o"+k);o.disabled=true;o.classList.add(k===w?"ok":k===i?"bad":"dim");countUp($("v"+k),x)});
+ let head;
+ if(ok){const m=hlPoints(r);run.pts+=m;run.ok++;setDepth(run.pts);burst("#8ef0c6",10+Math.round(20/r));
+  head=`<div class="tier" style="color:#8ef0c6;text-shadow:0 0 34px #8ef0c688">Správně</div><div class="sub">rozdíl ${pct(r)} · <b>+${fmt(m)}</b></div>`}
+ else{run.o2--;o2({i:run.o2,c:"pop"});ouch();const d=$("duel");d.classList.remove("shake");void d.offsetWidth;d.classList.add("shake");
+  head=`<div class="tier" style="color:#ffb0a5;text-shadow:0 0 30px #ff7a6a77">${i<0?"Došel čas":"−1 kyslík"}</div><div class="sub">${i<0?"−1 kyslík · ":""}víc má <b>${esc(W.n)}</b> · rozdíl ${pct(r)}</div>`}
+ run.res.push({ok,r});
+ const pn=$("pn");pn.className="panel hlq res";pn.innerHTML=`<div>${head}</div>`;
+ const notes=a.note===b.note?[a.note]:[a.note&&`${a.n}: ${a.note}`,b.note&&`${b.n}: ${b.note}`];$("h").innerHTML=notes.filter(Boolean).map(n=>`<div class="src">${esc(n)}</div>`).join("");
+ run.tapAt=performance.now()+450;card.onclick=()=>{if(advT&&performance.now()>run.tapAt)advHL()};
+ clearTimeout(advT);advT=setTimeout(advHL,ok?2500:3000)}
+function advHL(){if(!advT)return;clearTimeout(advT);advT=null;card.onclick=null;if(run.o2<=0)endHL();else askHL()}
+function endHL(){clearInterval(timer);card.onclick=null;stage.classList.remove("play");const h=ms.hl,m=run.pts,rec=m>h.best;if(rec)h.best=m;h.runs++;saveM();
+ const z=zoneOf(m),okR=run.res.filter(x=>x.ok).map(x=>x.r),tight=okR.length?Math.min(...okR):0,rs=run.res.slice(-40);
+ swap(`<div class="end"><div class="qn">Vyšší, nebo nižší? · došel kyslík</div><div class="big">${fmt(m)}</div><div class="zone">${esc(z)}${rec&&m>0?" · nový rekord":""}</div>
+ <div class="tcap">Odpovědi (✓ správně, ✕ chyba)</div><div class="chips">${rs.map((x,i)=>`<span style="--i:${i};${x.ok?"color:#8ef0c6;box-shadow:inset 0 0 0 1px #8ef0c666":"color:rgba(255,255,255,.35)"}">${x.ok?"✓":"✕"}</span>`).join("")}</div>
+ <div class="meta"><span>Správně <b>${run.ok}</b></span>${tight?`<span>Nejtěsnější rozdíl <b>${pct(tight)}</b></span>`:""}<span>Rekord <b>${fmt(h.best)}</b></span></div>${endRow}</div>`,()=>{
+  if(rec&&m>0)burst("#ffd36e",70);$("nx").onclick=startHL;$("md").onclick=home;
+  share($("cp"),`Krillion · Vyšší, nebo nižší? · ${fmt(m)} · správně ${run.ok}\n${run.res.map(x=>x.ok?"🟩":"⬛").join("")}`)});
+ ascendLater()}
+addEventListener("keydown",e=>{if(!run||run.mode!=="hl"||!stage.classList.contains("play")||stage.classList.contains("intro")||e.metaKey||e.ctrlKey||e.altKey)return;
+ if(advT&&(e.key==="Enter"||e.key===" ")){e.preventDefault();advHL();return}
+ const i={ArrowLeft:0,"1":0,ArrowRight:1,"2":1}[e.key];if(i!==undefined&&!busy){e.preventDefault();pickHL(i)}});
+
+/* ---------- režim „Odhad“ ---------- */
+const ESTT=[{n:"Přesně!",c:"#ffd36e"},{n:"Skvělý odhad",c:"#8ef0c6"},{n:"Blízko",c:"#63b6ff"},{n:"Vedle",c:"#ffb0a5"},{n:"Bez odpovědi",c:"#ffb0a5"}];
+const SHORTU=new Set(["m","km","cm","kg","g","mg","t","l","%","°C","km²","m²","ha","km/h","s","kcal","USD","€","SHU","BTC"]);
+const withU=(v,u)=>fmtNum(v)+(u?" "+u:"");
+// tip = číslo z inputu × násobitel z tlačítek tis./mil./mld. (na mobilu numerická klávesnice písmena nemá)
+const hasWordMul=t=>/\d\s*[.,]?\s*(k|tis|mil|mio|mld|md|miliard|bil)/i.test(t);
+const estVal=()=>{const t=$("a").value,v=parseNum(t);return v>0?v*(hasWordMul(t)?1:run.mul||1):NaN};
+function estPreview(){const g=estVal(),h=$("h");if(!h||advT)return;h.textContent=g>0&&(g>=1e4||run.mul>1)?"= "+(g>=1e15?fmtNum(g):Math.round(g).toLocaleString("cs-CZ"))+(run.q&&SHORTU.has(run.q.u)?" "+run.q.u:""):""}
+function startEst(){run={mode:"est",n:0,pts:0,res:[],qs:new Set(),cats:[],mul:1};
+ launch(`<div class="prog" id="prog"><i id="bar"></i></div><div class="panel" id="pn"></div>
+ <form class="glass field" id="f" autocomplete="off"><input id="a" inputmode="decimal" placeholder="Tvůj odhad" aria-label="Tvůj odhad" enterkeyhint="send" autocomplete="off" autocorrect="off" spellcheck="false"><span class="unit" id="un"></span><button class="go" id="sb" aria-label="Odeslat">${ARROW}</button></form>
+ <div class="mults" id="mu">${[["tis.",1e3],["mil.",1e6],["mld.",1e9]].map(([t,k])=>`<button type="button" data-k="${k}">${t}</button>`).join("")}</div><div class="hint" id="h"></div>`,()=>{
+  const a=$("a");$("f").onsubmit=e=>{e.preventDefault();if(advT){advEst();return}submitEst(false)};
+  a.addEventListener("input",()=>{if(advT){a.value="";return}estPreview()});
+  // tlačítka nesmí vzít inputu fokus, jinak se na telefonu zavře klávesnice
+  $("sb").onmousedown=e=>e.preventDefault();
+  for(const b of card.querySelectorAll("#mu button")){b.onmousedown=e=>e.preventDefault();b.onclick=()=>{if(advT||busy)return;const k=+b.dataset.k;run.mul=run.mul===k?1:k;if(hasWordMul(a.value))a.value=a.value.replace(/\s*[.,]?\s*(k|tis|mil|mio|mld|md|miliard|bil)\S*\s*$/i,"");
+   for(const o of card.querySelectorAll("#mu button"))o.classList.toggle("on",+o.dataset.k===run.mul);estPreview();try{a.focus({preventScroll:true})}catch(e){}}}
+  return a},askEst)}
+function askEst(){busy=false;advT=null;run.n++;run.mul=1;o2();const q=pickEst(ms,run);saveM();run.q=q;
+ const pn=$("pn");pn.className="panel";pn.onclick=null;pn.innerHTML=`<div style="animation:fade .45s both"><div class="qn">${run.n} / ${EST_N} · ${esc(q.c)}</div><div class="q">${esc(q.q)}</div></div>`;
+ const a=$("a");a.value="";$("f").classList.remove("dim");$("h").textContent="";$("un").textContent=SHORTU.has(q.u)?q.u:"";$("mu").style.visibility="";
+ for(const o of card.querySelectorAll("#mu button"))o.classList.remove("on");
+ try{a.focus({preventScroll:true})}catch(e){}
+ tick(EST_T,()=>submitEst(true))}
+function submitEst(timeout){const a=$("a");if(!a||busy||!run||run.mode!=="est")return;const g=estVal();
+ if(!timeout&&!(g>0)){$("h").textContent="Napiš kladné číslo, třeba 1 500, 2,5 tis. nebo 3 mil.";const f=$("f");f.classList.remove("shake");void f.offsetWidth;f.classList.add("shake");try{a.focus({preventScroll:true})}catch(e){}return}
+ busy=true;clearInterval(timer);const q=run.q,s=estScore(g,q.v),T=ESTT[s.k];run.pts+=s.m;run.res.push({q,g,s});
+ if(s.m){setDepth(run.pts);burst(T.c,6+(3-s.k)*12)}else{ouch();const f=$("f");f.classList.remove("shake");void f.offsetWidth;f.classList.add("shake")}
+ const pn=$("pn");pn.className="panel res";pn.innerHTML=`<div><div class="tier" style="color:${T.c};text-shadow:0 0 30px ${T.c}77">${T.n}</div>
+ <div class="sub">Skutečnost <b>${esc(withU(q.v,q.u))}</b></div>
+ <div class="sub">${g>0?`Tvůj tip ${esc(fmtNum(g))} · ${esc(estDiff(g,q.v))}`:"Došel čas"} · <b>+${fmt(s.m)}</b></div>${q.note?`<div class="src">${esc(q.note)}</div>`:""}</div>`;
+ pn.onclick=advEst;$("f").classList.add("dim");$("mu").style.visibility="hidden";$("h").textContent="";
+ try{a.focus({preventScroll:true})}catch(e){}
+ clearTimeout(advT);advT=setTimeout(advEst,5500)}
+function advEst(){if(!advT)return;clearTimeout(advT);advT=null;if(run.n>=EST_N)endEst();else askEst()}
+function endEst(){clearInterval(timer);const a=$("a");a&&a.blur();card.onclick=null;stage.classList.remove("play");const e=ms.est,m=run.pts,rec=m>e.best;if(rec)e.best=m;e.runs++;saveM();
+ const z=zoneOf(m),ex=run.res.filter(x=>x.s.k===0).length,good=run.res.filter(x=>x.s.k<=1).length;
+ swap(`<div class="end"><div class="qn">Odhad · ponor dokončen</div><div class="big">${fmt(m)}</div><div class="zone">${esc(z)}${rec&&m>0?" · nový rekord":""}</div>
+ <div class="elist">${run.res.map((x,i)=>{const T=ESTT[x.s.k];return`<div class="er" style="--i:${i}"><span class="eq">${i+1}. ${esc(x.q.q)}</span><b class="em" style="color:${T.c}">+${fmt(x.s.m)}</b><span class="ev">tip <b>${x.g>0?esc(fmtNum(x.g)):"—"}</b> · skutečnost <b>${esc(withU(x.q.v,x.q.u))}</b>${x.g>0?" · "+esc(estDiff(x.g,x.q.v)):""}</span></div>`}).join("")}</div>
+ <div class="meta"><span>Přesně <b>${ex}</b></span><span>Do ±25 % <b>${good}</b></span><span>Rekord <b>${fmt(e.best)}</b></span></div>${endRow}</div>`,()=>{
+  if(rec&&m>0)burst("#ffd36e",70);$("nx").onclick=startEst;$("md").onclick=home;
+  share($("cp"),`Krillion · Odhad · ${fmt(m)} · ${z}\n${run.res.map(x=>["🟨","🟩","🟦","⬛","⬛"][x.s.k]).join("")}`)});
+ ascendLater()}
 o2();home();
 }

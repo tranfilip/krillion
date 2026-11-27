@@ -7,6 +7,6 @@
   "scripts": {
     "dev": "npx --yes serve .",
     "dev:ai": "npx --yes vercel dev",
-    "test": "node tests/judge.test.js && node tests/select.test.js && node tests/data.test.js"
+    "test": "node tests/judge.test.js && node tests/select.test.js && node tests/data.test.js && node tests/modes.test.js"
   }
 }
