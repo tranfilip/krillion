@@ -196,115 +196,203 @@ function creature(k,x,y,t,d,lum,dir){
  else if(k==="snail"){cx.save();cx.translate(x,y);cx.scale(dir||1,1);const sg=cx.createLinearGradient(0,-12,0,12);sg.addColorStop(0,"rgba(255,230,240,.5)");sg.addColorStop(1,"rgba(230,180,200,.35)");cx.fillStyle=sg;cx.beginPath();cx.ellipse(0,0,32,12,0,0,7);cx.fill();cx.beginPath();cx.moveTo(-28,-3);cx.quadraticCurveTo(-58,-6+Math.sin(t/420)*7,-76,0);cx.quadraticCurveTo(-58,6,-28,5);cx.fill();cx.fillStyle="rgba(20,0,10,.6)";cx.beginPath();cx.arc(20,-3,2,0,7);cx.fill();cx.restore()}}
 function lure(x,y,t,dir){const lx=x+(dir||1)*52,gl=.65+Math.sin(t/280)*.35;cx.save();cx.shadowBlur=36;cx.shadowColor="#ffd36e";cx.fillStyle=`rgba(255,228,150,${gl})`;cx.beginPath();cx.arc(lx,y-38,5,0,7);cx.fill();cx.globalAlpha=gl*.15;cx.beginPath();cx.arc(lx,y-38,30,0,7);cx.fill();cx.restore()}
 function limb(x1,y1,x2,y2,bend,w,c){const mx=(x1+x2)/2,my=(y1+y2)/2,dxl=x2-x1,dyl=y2-y1,l=Math.hypot(dxl,dyl)||1;const kx=mx-dyl/l*bend,ky=my+dxl/l*bend;cx.strokeStyle=c;cx.lineWidth=w;cx.lineCap="round";cx.lineJoin="round";cx.beginPath();cx.moveTo(x1,y1);cx.lineTo(kx,ky);cx.lineTo(x2,y2);cx.stroke();return[kx,ky]}
-function diver(x,y,t,tilt){const sp=230-kick*90,k=Math.sin(t/sp)*(1+kick*.7),k2=Math.sin(t/sp+Math.PI)*(1+kick*.7);
+const rot2=(x,y,a)=>{const c=Math.cos(a),s=Math.sin(a);return[x*c-y*s,x*s+y*c]};
+/* Potápěč s klouby. Bez P plave (póza ze hry). P={leg:0–1 sed, tuck:0–1 schoulení, neck:otočení hlavy, hand:0–1 ruka na masce, kk:síla kopu}
+   – díky tomu se dá posadit na loď, převalit zády do vody a plynule přejít do plavání. */
+function diver(x,y,t,tilt,P){const sp=230-kick*90,ka=P?P.kk:1,k=Math.sin(t/sp)*(1+kick*.7)*ka,k2=Math.sin(t/sp+Math.PI)*(1+kick*.7)*ka;
+ const leg=P?P.leg:0,tuck=P?P.tuck:0,neck=P?P.neck:0,hand=P?P.hand:0;
  cx.save();cx.translate(x,y);cx.rotate(tilt);cx.scale(1.18,1.18);
- const suit="#121a24",suit2="#2a3b50",rim="rgba(190,240,255,.55)",acc="#ff8a6b",acc2="#ffb08f";
- // zadní noha + ploutev
- for(const[o,kk,sh]of[[3,k2,.75],[-3,k,1]]){const hipX=-17,hipY=o+1,footX=-50,footY=o+2+kk*7;const[kx,ky]=limb(hipX,hipY,footX,footY,kk*3+2,8.5,sh<1?"#0d141c":suit);
-  cx.save();cx.translate(footX,footY);cx.rotate(Math.atan2(footY-ky,footX-kx)+Math.PI+kk*.35);const fg=cx.createLinearGradient(-30,0,0,0);fg.addColorStop(0,sh<1?"rgba(200,95,75,.75)":"rgba(255,140,110,.8)");fg.addColorStop(1,sh<1?"#c8644e":acc);cx.fillStyle=fg;cx.beginPath();cx.moveTo(2,-3.5);cx.quadraticCurveTo(-14,-11,-34,-10);cx.quadraticCurveTo(-28,0,-34,10);cx.quadraticCurveTo(-14,11,2,3.5);cx.fill();cx.strokeStyle="rgba(255,255,255,.25)";cx.lineWidth=.8;cx.beginPath();cx.moveTo(-4,-1);cx.lineTo(-30,-3);cx.moveTo(-4,1);cx.lineTo(-30,3);cx.stroke();cx.restore()}
+ const suit="#121a24",suit2="#2a3b50",rim="rgba(190,240,255,.55)",acc="#ff8a6b";
+ // nohy + ploutve (zadní tmavší): plavání = natažené dozadu s kopem; sed = stehna dopředu, lýtka dolů
+ for(const[o,kk,sh]of[[3,k2,.75],[-3,k,1]]){const hx=-17,hy=o+1;let fx=-50,fy=o+2+kk*7;
+  const b=kk*3+2,dl=Math.hypot(fx-hx,fy-hy);let kx=(hx+fx)/2-(fy-hy)/dl*b,ky=(hy+fy)/2+(fx-hx)/dl*b;
+  if(leg>0){const sw=Math.sin(t/820+o)*.1*(1-tuck),aT=Math.PI/2-tuck*.9+(o>0?.1:0),aS=aT+Math.PI/2+tuck*.5+sw,qx=hx+Math.cos(aT)*18,qy=hy+Math.sin(aT)*18;
+   kx+=(qx-kx)*leg;ky+=(qy-ky)*leg;fx+=(qx+Math.cos(aS)*17-fx)*leg;fy+=(qy+Math.sin(aS)*17-fy)*leg}
+  cx.strokeStyle=sh<1?"#0d141c":suit;cx.lineWidth=8.5;cx.lineCap="round";cx.lineJoin="round";cx.beginPath();cx.moveTo(hx,hy);cx.lineTo(kx,ky);cx.lineTo(fx,fy);cx.stroke();
+  cx.save();cx.translate(fx,fy);cx.rotate(Math.atan2(fy-ky,fx-kx)+Math.PI+kk*.35*(1-leg)-leg*.4);const fg=cx.createLinearGradient(-30,0,0,0);fg.addColorStop(0,sh<1?"rgba(200,95,75,.75)":"rgba(255,140,110,.8)");fg.addColorStop(1,sh<1?"#c8644e":acc);cx.fillStyle=fg;cx.beginPath();cx.moveTo(2,-3.5);cx.quadraticCurveTo(-14,-11,-34,-10);cx.quadraticCurveTo(-28,0,-34,10);cx.quadraticCurveTo(-14,11,2,3.5);cx.fill();cx.strokeStyle="rgba(255,255,255,.25)";cx.lineWidth=.8;cx.beginPath();cx.moveTo(-4,-1);cx.lineTo(-30,-3);cx.moveTo(-4,1);cx.lineTo(-30,3);cx.stroke();cx.restore()}
  // láhev
  const tg=cx.createLinearGradient(0,-24,0,-10);tg.addColorStop(0,"#fff4c8");tg.addColorStop(.35,"#f4cb55");tg.addColorStop(1,"#a97a14");cx.fillStyle=tg;cx.beginPath();cx.roundRect(-22,-23,40,11,5.5);cx.fill();cx.fillStyle="rgba(0,0,0,.25)";cx.fillRect(-12,-23,2,11);cx.fillRect(6,-23,2,11);cx.fillStyle="#3b3f45";cx.beginPath();cx.roundRect(17,-21,6,7,2);cx.fill();cx.fillStyle="#d9dee3";cx.beginPath();cx.arc(24,-17.5,2.2,0,7);cx.fill();
  // trup
  const bg=cx.createLinearGradient(0,-13,0,11);bg.addColorStop(0,suit2);bg.addColorStop(.5,suit);bg.addColorStop(1,"#0a0f15");cx.fillStyle=bg;cx.beginPath();cx.moveTo(20,-9);cx.quadraticCurveTo(4,-14,-18,-8);cx.quadraticCurveTo(-24,0,-18,7);cx.quadraticCurveTo(4,12,20,7);cx.quadraticCurveTo(26,-1,20,-9);cx.fill();
  // vesta BCD
  const vg=cx.createLinearGradient(0,-12,0,10);vg.addColorStop(0,"#3c5470");vg.addColorStop(1,"#1d2b3c");cx.fillStyle=vg;cx.beginPath();cx.moveTo(18,-9);cx.quadraticCurveTo(6,-12,-6,-10);cx.lineTo(-8,6);cx.quadraticCurveTo(6,10,18,6);cx.closePath();cx.fill();cx.fillStyle=acc;cx.fillRect(-6,-3,24,2.4);cx.fillStyle="#9aa4ad";cx.beginPath();cx.roundRect(-14,4,6,5,1.2);cx.fill();cx.fillStyle="#2b2f34";cx.fillRect(-18,3,30,2.2);
- // hadice
- cx.strokeStyle="#1b1f24";cx.lineWidth=2;cx.beginPath();cx.moveTo(22,-16);cx.bezierCurveTo(30,-18,36,-8,37,0);cx.stroke();cx.strokeStyle="#ffcc4d";cx.lineWidth=1.6;cx.beginPath();cx.moveTo(20,-14);cx.bezierCurveTo(14,4,22,12,26,10);cx.stroke();
+ // hadice k automatice (konec se otáčí s hlavou)
+ const[rx0,ry0]=rot2(7.5,7,neck),rx=30+rx0,ry=-6+ry0;
+ cx.strokeStyle="#1b1f24";cx.lineWidth=2;cx.beginPath();cx.moveTo(22,-16);cx.bezierCurveTo(30,-18,rx-1,ry-9,rx-.5,ry-1);cx.stroke();cx.strokeStyle="#ffcc4d";cx.lineWidth=1.6;cx.beginPath();cx.moveTo(20,-14);cx.bezierCurveTo(14,4,22,12,26,10);cx.stroke();
  // zadní paže
- const ax=Math.sin(t/900)*2;limb(14,-2,30,10+ax,-3,5.5,"#0d141c");cx.fillStyle="#0d141c";cx.beginPath();cx.arc(30,10+ax,3,0,7);cx.fill();
- // hlava
+ const ax=Math.sin(t/900)*2,bx2=30+(-12-30)*leg,by2=10+ax+(-8-10-ax)*leg;limb(14,-2,bx2,by2,-3+leg*7,5.5,"#0d141c");cx.fillStyle="#0d141c";cx.beginPath();cx.arc(bx2,by2,3,0,7);cx.fill();
+ // hlava (s krkem: v sedu se dívá dopředu, při plavání před sebe)
+ cx.save();if(neck){cx.translate(30,-6);cx.rotate(neck);cx.translate(-30,6)}
  const hg=cx.createRadialGradient(28,-9,1,30,-6,10);hg.addColorStop(0,suit2);hg.addColorStop(1,suit);cx.fillStyle=hg;cx.beginPath();cx.arc(30,-6,9,0,7);cx.fill();cx.strokeStyle="#0a0e13";cx.lineWidth=1.4;cx.beginPath();cx.arc(30,-6,8,-2.2,-.6);cx.stroke();
  const mg=cx.createLinearGradient(32,-13,41,-3);mg.addColorStop(0,"#e5fdff");mg.addColorStop(.35,"#6fd8ef");mg.addColorStop(1,"#155d80");cx.fillStyle="#111";cx.beginPath();cx.roundRect(31,-13.5,11,10,3.5);cx.fill();cx.fillStyle=mg;cx.beginPath();cx.roundRect(32.3,-12.3,8.6,7.6,2.6);cx.fill();cx.fillStyle="rgba(255,255,255,.85)";cx.beginPath();cx.moveTo(33.4,-11.4);cx.lineTo(36,-11.4);cx.lineTo(34,-7);cx.lineTo(33.4,-7);cx.fill();
  cx.fillStyle="#2d3238";cx.beginPath();cx.arc(37.5,1,3.2,0,7);cx.fill();cx.fillStyle="#ffcc4d";cx.fillRect(36.2,-.4,2.6,1.2);
  cx.fillStyle="#1d2228";cx.beginPath();cx.roundRect(25,-16.5,7,4.5,1.5);cx.fill();cx.fillStyle="#fff8d8";cx.beginPath();cx.arc(31.6,-14.3,1.6,0,7);cx.fill();
- // přední paže
- const reach=Math.sin(t/1100)*3;const[ekx,eky]=limb(12,0,36,14+reach,4,6,suit);cx.fillStyle="#0b0f14";cx.beginPath();cx.ellipse(37.5,14.5+reach,3.6,2.8,.4,0,7);cx.fill();
- cx.fillStyle="#d7e3ea";cx.beginPath();cx.roundRect(31,11+reach,4,3.4,1);cx.fill();
+ cx.restore();
+ // přední paže (před skokem drží masku a automatiku)
+ const reach=Math.sin(t/1100)*3*(1-hand),sx0=36+(-9-36)*leg*(1-hand),sy0=14+reach+(16-14-reach)*leg*(1-hand),ex=sx0+(rx+1.5-sx0)*hand,ey=sy0+(ry+2.5-sy0)*hand;limb(12,0,ex,ey,4-hand*9-leg*(1-hand)*8,6,suit);cx.fillStyle="#0b0f14";cx.beginPath();cx.ellipse(ex+1.5,ey+.5,3.6,2.8,.4,0,7);cx.fill();
+ cx.fillStyle="#d7e3ea";cx.beginPath();cx.roundRect(ex-5,ey-3,4,3.4,1);cx.fill();
  // okrajové světlo
  cx.strokeStyle=rim;cx.lineWidth=1;cx.beginPath();cx.moveTo(-18,-8.4);cx.quadraticCurveTo(4,-14.4,20,-9.4);cx.stroke();cx.beginPath();cx.arc(30,-6,9,-2.6,-1.4);cx.stroke();
  cx.restore()}
 function head(x,y,tilt){const c=Math.cos(tilt),s=Math.sin(tilt),lx=31.6*1.18,ly=-14.3*1.18;return[x+c*lx-s*ly,y+s*lx+c*ly]}
 function mouth(x,y,tilt){const c=Math.cos(tilt),s=Math.sin(tilt),lx=38*1.18,ly=1*1.18;return[x+c*lx-s*ly,y+s*lx+c*ly]}
-/* ---------- úvod: potápěč se z lodi zády převalí do vody (back roll), kamera sjede pod hladinu ---------- */
-const INTRO=2600,ROLL0=420,ROLL1=1150,CAM0=1200,CAM1=2450;
-let intro=null;const drops=[];
-const eIO=x=>x<=0?0:x>=1?1:x<.5?2*x*x:1-(-2*x+2)**2/2,eIn=x=>x<=0?0:x>=1?1:x*x;
-// cachované gradienty (v lokálních souřadnicích, kreslí se přes translate)
-let SKY=null,SKYK="";function skyG(h){const k=h|0;if(SKYK!==k){SKYK=k;SKY=cx.createLinearGradient(0,-h,0,0);SKY.addColorStop(0,"#5fc3e6");SKY.addColorStop(.55,"#a9e3f3");SKY.addColorStop(.78,"#e6f8fb");SKY.addColorStop(.8,"#4fb2d6");SKY.addColorStop(1,"#2591c2")}return SKY}
+
+/* ---------- scéna u hladiny: obloha, slunce, loď na vlnách a potápěč na zádi.
+   Úvod (S.m="roll", ~2,75 s): zakloní se, převalí zády do vody, šplouchnutí, kamera sjede pod hladinu, srovná se a kope dolů.
+   Konec (S.m="asc" → "surf"): vystoupá k hladině a vyleze zpátky na loď. Kamera = posun S.co (px) celého světa. ---------- */
+const RL={lean:420,fall:1050,cam0:800,cam1:2350,lvl:2550,end:2750},SF={cam:1400,pop:1120,climb0:1260,climb1:2150,end:2350};
+const eIO=x=>x<=0?0:x>=1?1:x<.5?2*x*x:1-(-2*x+2)**2/2;
+const seg=(e,a,b)=>e<=a?0:e>=b?1:(e-a)/(b-a),mix=(a,b,k)=>a+(b-a)*k;
+// Hermitova křivka: navazuje na rychlost z pádu, takže potápěč po dopadu plynule zpomalí (žádné zastavení)
+const herm=(p0,m0,p1,s)=>{const s2=s*s,s3=s2*s;return(2*s3-3*s2+1)*p0+(s3-2*s2+s)*m0+(3*s2-2*s3)*p1};
+const capM=(m,d)=>Math.sign(m)===Math.sign(d)?Math.sign(m)*Math.min(Math.abs(m),Math.abs(d)*2.4):m*.3;
+const S={m:"deck",e:0,sp:1,done:null,co:null,co0:0,coP:0,L:0,bx:0,by:0,r:0,sc0:.6,lay:null,dv:null,snap:30,band:40};
+const drops=[],rings=[],foam=[];let crown=null,wwater=null;
+const wave=(x,t)=>Math.sin(x/41+t/560)*2.6+Math.sin(x/17-t/340)*1.1;
+// sprity a gradienty se vytvoří jednou (výkon na iPhonu), pak už jen drawImage / translate
+const sprite=(w,h,f)=>{const c=document.createElement("canvas");c.width=w;c.height=h;f(c.getContext("2d"));return c};
+const SUN=sprite(240,240,b=>{const g=b.createRadialGradient(120,120,0,120,120,120);g.addColorStop(0,"rgba(255,252,236,1)");g.addColorStop(.15,"rgba(255,247,214,1)");g.addColorStop(.18,"rgba(255,238,186,.6)");g.addColorStop(.4,"rgba(255,228,170,.2)");g.addColorStop(1,"rgba(255,222,160,0)");b.fillStyle=g;b.fillRect(0,0,240,240)});
+const CLOUD=sprite(260,104,b=>{for(const[x,y,r]of[[64,70,30],[104,52,40],[150,48,44],[196,64,32],[38,80,20],[128,78,30],[226,80,18]]){const g=b.createRadialGradient(x-r*.2,y-r*.35,r*.1,x,y,r);g.addColorStop(0,"rgba(255,255,255,1)");g.addColorStop(.75,"rgba(246,251,255,.92)");g.addColorStop(1,"rgba(235,246,252,0)");b.fillStyle=g;b.beginPath();b.arc(x,y,r,0,7);b.fill()}
+ b.globalCompositeOperation="source-atop";const g=b.createLinearGradient(0,50,0,104);g.addColorStop(0,"rgba(190,222,238,0)");g.addColorStop(1,"rgba(160,200,224,.45)");b.fillStyle=g;b.fillRect(0,0,260,104)});
+const FOAM=sprite(64,64,b=>{const g=b.createRadialGradient(32,32,0,32,32,32);g.addColorStop(0,"rgba(255,255,255,.9)");g.addColorStop(.5,"rgba(240,252,255,.45)");g.addColorStop(1,"rgba(240,252,255,0)");b.fillStyle=g;b.fillRect(0,0,64,64)});
+let SKY=null,SKYH=0;function skyG(){if(SKYH!==H){SKYH=H;SKY=cx.createLinearGradient(0,-H,0,0);SKY.addColorStop(0,"#2a8fcd");SKY.addColorStop(.45,"#5db6e3");SKY.addColorStop(.8,"#a6dcf0");SKY.addColorStop(.95,"#e2f6f8");SKY.addColorStop(1,"#f6fcf6")}return SKY}
+let SEA=null,SEAB=-1;function seaG(b){b=Math.round(b);if(SEAB!==b){SEAB=b;SEA=cx.createLinearGradient(0,0,0,b+6);SEA.addColorStop(0,"#8fd3e4");SEA.addColorStop(.1,"#46aad2");SEA.addColorStop(.55,"#2a93c4");SEA.addColorStop(1,"#1878ad")}return SEA}
+let UNB=null;function undG(){if(!UNB){UNB=cx.createLinearGradient(0,0,0,60);UNB.addColorStop(0,"rgba(235,252,255,.4)");UNB.addColorStop(1,"rgba(235,252,255,0)")}return UNB}
 let BG=null,BGL=0;function boatG(L){if(BGL===L)return BG;BGL=L;const H1=L*.16,g=(a,b,c)=>{const x=cx.createLinearGradient(0,a,0,b);for(const[o,col]of c)x.addColorStop(o,col);return x};
  BG={hull:g(-H1,L*.07,[[0,"#f4fbff"],[.45,"#d6e6ef"],[.62,"#1c3550"],[1,"#0e1f33"]]),cab:g(-H1-L*.17,-H1,[[0,"#ffffff"],[1,"#cfdde6"]]),win:g(-H1-L*.15,-H1-L*.06,[[0,"#e5fdff"],[.4,"#6fd8ef"],[1,"#155d80"]]),
   under:g(0,L*.08,[[0,"rgba(20,120,170,.55)"],[1,"rgba(10,70,120,.75)"]])};return BG}
-function boat(x,y,L,t){const H1=L*.16,G=boatG(L),r=Math.sin(t/760)*.025;cx.save();cx.translate(x,y);cx.rotate(r);
+/* loď (lokálně: čára vody y=0, záď vlevo); ponořená část prosvítá vodou */
+function boat(t){const L=S.L,H1=L*.16,G=boatG(L);cx.save();cx.translate(S.bx,S.by);cx.rotate(S.r);
+ const hull=()=>{cx.beginPath();cx.moveTo(-L*.5,-H1);cx.lineTo(L*.36,-H1);cx.quadraticCurveTo(L*.5,-H1-L*.02,L*.53,-H1-L*.05);cx.quadraticCurveTo(L*.44,L*.02,L*.3,L*.07);cx.lineTo(-L*.46,L*.07);cx.quadraticCurveTo(-L*.5,L*.03,-L*.5,-H1)};
  // konzole s předním sklem, stožár s vlajkou „potápěč pod vodou“
  cx.fillStyle=G.cab;cx.beginPath();cx.moveTo(-L*.02,-H1);cx.lineTo(L*.03,-H1-L*.17);cx.lineTo(L*.2,-H1-L*.17);cx.lineTo(L*.27,-H1);cx.closePath();cx.fill();
  cx.fillStyle=G.win;cx.beginPath();cx.moveTo(L*.045,-H1-L*.15);cx.lineTo(L*.19,-H1-L*.15);cx.lineTo(L*.23,-H1-L*.06);cx.lineTo(L*.025,-H1-L*.06);cx.closePath();cx.fill();
  cx.fillStyle="rgba(255,255,255,.8)";cx.beginPath();cx.moveTo(L*.06,-H1-L*.145);cx.lineTo(L*.09,-H1-L*.145);cx.lineTo(L*.06,-H1-L*.07);cx.fill();
+ cx.fillStyle="#2a3b50";cx.fillRect(L*.03,-H1-L*.185,L*.17,L*.018);
  cx.strokeStyle="#3b4a58";cx.lineWidth=2;cx.beginPath();cx.moveTo(L*.12,-H1-L*.17);cx.lineTo(L*.12,-H1-L*.36);cx.stroke();
- const fw=Math.sin(t/260)*2;cx.fillStyle="#e8402f";cx.beginPath();cx.moveTo(L*.12,-H1-L*.36);cx.lineTo(L*.24,-H1-L*.355+fw);cx.lineTo(L*.24,-H1-L*.275+fw);cx.lineTo(L*.12,-H1-L*.28);cx.closePath();cx.fill();
+ const fw=Math.sin(t/260)*2,fw2=Math.sin(t/260+1.3)*2;cx.fillStyle="#e8402f";cx.beginPath();cx.moveTo(L*.12,-H1-L*.36);cx.quadraticCurveTo(L*.18,-H1-L*.36+fw2,L*.24,-H1-L*.355+fw);cx.lineTo(L*.24,-H1-L*.275+fw);cx.quadraticCurveTo(L*.18,-H1-L*.28+fw2,L*.12,-H1-L*.28);cx.closePath();cx.fill();
  cx.strokeStyle="#fff";cx.lineWidth=2.6;cx.beginPath();cx.moveTo(L*.125,-H1-L*.352);cx.lineTo(L*.235,-H1-L*.283+fw);cx.stroke();
- // náhradní láhev v lodi
- cx.fillStyle="#f4cb55";cx.beginPath();cx.roundRect(-L*.2,-H1-L*.1,L*.045,L*.11,L*.02);cx.fill();cx.fillStyle="#3b3f45";cx.fillRect(-L*.188,-H1-L*.12,L*.02,L*.025);
- // trup: bílý nahoře, tmavé dno, oranžový pruh
- const hull=()=>{cx.beginPath();cx.moveTo(-L*.5,-H1);cx.lineTo(L*.36,-H1);cx.quadraticCurveTo(L*.5,-H1-L*.02,L*.53,-H1-L*.05);cx.quadraticCurveTo(L*.44,L*.02,L*.3,L*.07);cx.lineTo(-L*.46,L*.07);cx.quadraticCurveTo(-L*.5,L*.03,-L*.5,-H1)};
+ // náhradní láhve v lodi
+ cx.fillStyle="#f4cb55";for(const o of[0,.055]){cx.beginPath();cx.roundRect(-L*(.24-o),-H1-L*.1,L*.042,L*.11,L*.02);cx.fill()}cx.fillStyle="#3b3f45";cx.fillRect(-L*.228,-H1-L*.118,L*.018,L*.022);cx.fillRect(-L*.173,-H1-L*.118,L*.018,L*.022);
+ // trup: bílý nahoře, tmavé dno, oranžový pruh, okénka
  cx.fillStyle=G.hull;hull();cx.fill();
  cx.fillStyle="#ff8a6b";cx.beginPath();cx.moveTo(-L*.5,-H1*.5);cx.lineTo(L*.47,-H1*.62);cx.lineTo(L*.45,-H1*.44);cx.lineTo(-L*.5,-H1*.32);cx.closePath();cx.fill();
  cx.fillStyle="#2a3b50";cx.fillRect(-L*.5,-H1-2,L*.87,3);
- cx.strokeStyle="rgba(190,205,215,.9)";cx.lineWidth=1.6;cx.beginPath();cx.moveTo(-L*.42,-H1);cx.lineTo(-L*.42,-H1-L*.07);cx.lineTo(L*.34,-H1-L*.07);cx.lineTo(L*.34,-H1);cx.stroke();
- // ponořená část trupu je vidět pod hladinou přes vodu
+ cx.fillStyle="rgba(20,50,80,.75)";for(const x of[.1,.18,.26]){cx.beginPath();cx.arc(L*x,-H1*.78,L*.014,0,7);cx.fill()}
+ cx.strokeStyle="rgba(255,255,255,.55)";cx.lineWidth=1;cx.beginPath();cx.moveTo(-L*.49,-H1+1.5);cx.lineTo(L*.36,-H1+1.5);cx.stroke();
+ cx.strokeStyle="rgba(190,205,215,.9)";cx.lineWidth=1.6;cx.beginPath();cx.moveTo(-L*.36,-H1);cx.lineTo(-L*.36,-H1-L*.07);cx.lineTo(L*.34,-H1-L*.07);cx.lineTo(L*.34,-H1);cx.moveTo(-L*.36,-H1-L*.07);cx.lineTo(-L*.3,-H1-L*.07);cx.stroke();
+ // žebřík na zádi (po něm potápěč vyleze zpátky)
+ cx.strokeStyle="#b9c7d1";cx.lineWidth=1.8;cx.beginPath();cx.moveTo(-L*.47,-H1-L*.025);cx.quadraticCurveTo(-L*.53,-H1-L*.03,-L*.53,-H1+L*.01);cx.lineTo(-L*.53,L*.07);cx.stroke();
+ cx.lineWidth=1.4;cx.beginPath();for(let y=-H1+L*.03;y<L*.07;y+=L*.03){cx.moveTo(-L*.53,y);cx.lineTo(-L*.555,y)}cx.stroke();
+ // pěna u trupu na čáře vody
+ cx.fillStyle=`rgba(255,255,255,${.45+Math.sin(t/300)*.15})`;cx.beginPath();cx.ellipse(L*.36,1,L*.07,2.2,0,0,7);cx.ellipse(-L*.48,1,L*.05,1.8,0,0,7);cx.fill();
+ // ponořená část trupu prosvítá vodou
  cx.save();cx.beginPath();cx.rect(-L,0,L*2,L*.2);cx.clip();cx.fillStyle=G.under;hull();cx.fill();cx.restore();
  cx.restore()}
-function startIntro(done){intro={t0:performance.now(),done,splash:false,ex:0,ey:0};drops.length=0}
-function endIntro(){if(!intro)return;const d=intro.done;intro=null;drops.length=0;d&&d()}
-function introFrame(t,dxp,dyp,tilt){const e=t-intro.t0;if(e>=INTRO){endIntro();return null}
- const s0=vTop+vH*.47,sEnd=vTop-vH*.3,sY=s0+(sEnd-s0)*eIO((e-CAM0)/(CAM1-CAM0))+Math.sin(t/700)*2;
- const L=Math.min(W*.62,300),bx=W*.56,by=sY-L*.012;
- // nebe a vzdálená hladina nad čarou vody
- if(sY>0){cx.save();cx.translate(0,sY);cx.fillStyle=skyG(vH*.75);cx.fillRect(0,-sY-2,W,sY+2);cx.fillStyle="rgba(255,255,255,.75)";
-  for(let i=0;i<3;i++){const cxp=((i*.37+t/90000)%1)*W*1.3-W*.15,cyp=-vH*(.6-i*.09);cx.beginPath();cx.ellipse(cxp,cyp,46+i*14,10+i*3,0,0,7);cx.ellipse(cxp+30,cyp-6,26,9,0,0,7);cx.fill()}
-  cx.restore()}
- // potápěč: sedí na okraji, zády se převalí do vody, pod vodou doplave na své místo
- const G0x=bx-L*.44,G0y=by-L*.16,sc0=.62;let px,py,rot,sc;
- if(e<ROLL1){const p=eIn((e-ROLL0)/(ROLL1-ROLL0)),lean=e<ROLL0?Math.sin(e/120)*.04:0;
-  rot=-Math.PI/2-p*Math.PI-lean;sc=sc0;px=G0x-p*L*.16;py=G0y-20*sc0+p*(sY+30-(G0y-20*sc0));
-  if(!intro.splash&&py>sY-6){intro.splash=true;intro.ex=px;intro.ey=py-sY;
-   for(let i=0;i<(MOBILE?22:34);i++){const a=-Math.PI/2+(Math.random()-.5)*1.7,v=Math.random()*4.5+2.5;drops.push({x:px+(Math.random()-.5)*18,y:-2,vx:Math.cos(a)*v,vy:Math.sin(a)*v,r:Math.random()*2.4+1,l:1})}
-   for(let i=0;i<(MOBILE?24:40);i++)bub.push({x:px+(Math.random()-.5)*40,y:sY+10+Math.random()*50,r:Math.random()*4+1.5,vy:Math.random()*1.4+.8,d:Math.random()*400,w:Math.random()*6})}}
- else{const q=eIO((e-ROLL1)/(INTRO-ROLL1-80));const x1=intro.ex||G0x-L*.2,y1=sY+(intro.ey||28);
-  rot=-Math.PI*1.5+q*(-Math.PI*.5+tilt);sc=sc0+(1-sc0)*q;px=x1+(dxp-x1)*q;py=y1+(dyp-y1)*q}
- // kapky nad hladinou a pěna kolem místa dopadu
- for(let i=drops.length-1;i>=0;i--){const d=drops[i];d.x+=d.vx;d.y+=d.vy;d.vy+=.32;if(d.y>0&&d.vy>0){drops.splice(i,1);continue}}
- if(drops.length){cx.fillStyle="rgba(245,253,255,.95)";cx.beginPath();for(const d of drops){const y=sY+d.y;cx.moveTo(d.x+d.r,y);cx.arc(d.x,y,d.r,0,7)}cx.fill()}
- if(intro.splash){const k=Math.min(1,(e-ROLL1+120)/700);if(k<1){cx.strokeStyle=`rgba(255,255,255,${.85*(1-k)})`;cx.lineWidth=3*(1-k)+1;cx.beginPath();cx.ellipse(intro.ex,sY,14+k*70,3+k*8,0,0,7);cx.stroke()}}
- // čára hladiny (vlnky) a světlý pás těsně pod ní
- if(sY>-20&&sY<H+20){cx.fillStyle="rgba(255,255,255,.18)";cx.fillRect(0,sY,W,18);cx.strokeStyle="rgba(255,255,255,.85)";cx.lineWidth=2;cx.beginPath();for(let x=0;x<=W;x+=12){const y=sY+Math.sin(x/30+t/300)*2.2+Math.sin(x/11-t/210)*1;x?cx.lineTo(x,y):cx.moveTo(x,y)}cx.stroke()}
- const seated=e<ROLL0+90; // dokud sedí, nohy jsou v lodi (za trupem); při převalu přepadnou přes okraj
- if(!seated)boat(bx,by,L,t);
- cx.save();cx.translate(px,py);cx.scale(sc,sc);diver(0,0,t,rot);cx.restore();
- if(seated)boat(bx,by,L,t);
+/* místo, kde je na úvodní / koncové obrazovce hladina a jak velká je loď: v prostoru mezi HUD a kartou */
+function deckLayout(){const top=vTop+64,ct=vTop+Math.max(card.offsetTop,150),free=ct-top,L=Math.max(130,Math.min(W*.6,300,free*1.25));
+ return{wl:top+Math.max(free*.8,L*.56+8),L,bx:Math.max(L*.62,Math.min(W*.56,W-L*.6))}}
+function seat(t){const H1=S.L*.16,[a,b]=rot2(-S.L*.455,-H1-1,S.r);return{x:S.bx+a,y:S.by+b,rot:-Math.PI/2+S.r+Math.sin(t/1900)*.03}}
+function fromHip(hx,hy,rot,sc){const k=1.18*sc,[a,b]=rot2(-17*k,k,rot);return[hx-a,hy-b]}
+const SEAT_P=t=>({leg:1,tuck:0,neck:1.4+Math.sin(t/2600)*.15,hand:0,kk:0});
+/* převal: poloha středu těla vůči hladině během pádu (u = 0–1) */
+function fallPose(u,t){const s=S.h0,rot=S.r0-Math.PI*.95*u**1.7,hx=s[0]-S.L*.16*u*u*(3-2*u),hy=s[1]+(22-s[1])*u*u;const[x,y]=fromHip(hx,hy,rot,S.sc0);return{x,y,rot}}
+function splash(x,big,sY){const n=big?(MOBILE?22:34):(MOBILE?8:12),s=big?1:.55;
+ for(let i=0;i<n;i++){const a=-Math.PI/2+(Math.random()-.5)*(big?1.9:1.3),v=(Math.random()*.3+.14)*s+.04;drops.push({x:x+(Math.random()-.5)*16,y:-2,vx:Math.cos(a)*v,vy:Math.sin(a)*v,r:Math.random()*2.2+.9})}
+ for(let i=0;i<(big?3:2);i++)rings.push({x,a:-i*200,big});
+ for(let i=0;i<(big?7:3);i++)foam.push({x:x+(Math.random()-.5)*(big?46:18),w:Math.random()*14+8,l:1,s:(Math.random()-.5)*.03});
+ if(big){crown={x,a:0};wwater={x,a:0};for(let i=0;i<(MOBILE?26:42);i++)bub.push({x:x+(Math.random()-.5)*50,y:sY+8+Math.random()*80,r:Math.random()*4+1.4,vy:Math.random()*1.3+.7,d:Math.random()*380,w:Math.random()*6})}}
+function rollStep(t,e,sY,dxp,dyp,tilt){let x,y,rot,sc=S.sc0,P;
+ if(e<RL.lean){const s=seat(t),p=eIO(e/RL.lean);rot=s.rot-.34*p;[x,y]=fromHip(s.x,s.y,rot,sc);P={leg:1,tuck:.35*p,neck:1.4-.6*p,hand:eIO(e/280),kk:0};S.h0=[s.x,s.y-sY];S.r0=rot}
+ else if(e<RL.fall){const u=(e-RL.lean)/(RL.fall-RL.lean),f=fallPose(u,t);x=f.x;y=sY+f.y;rot=f.rot;P={leg:1,tuck:.35+.6*eIO(u),neck:.8-.45*u,hand:1,kk:0};
+  if(!S.spl&&y>sY-2){S.spl=true;splash(x,true,sY)}}
+ else{if(!S.f1){const D=RL.fall-RL.lean,a=fallPose(1,t),b=fallPose(.98,t);S.f1=a;S.fv={x:(a.x-b.x)/(.02*D),y:(a.y-b.y)/(.02*D),r:(a.rot-b.rot)/(.02*D)};if(!S.spl){S.spl=true;splash(a.x,true,sY)}}
+  const D=RL.lvl-RL.fall,s=seg(e,RL.fall,RL.lvl),tx=dxp,ty=dyp-(vTop-70),tr=tilt-Math.PI*2,f=S.f1;
+  x=herm(f.x,capM(S.fv.x*D,tx-f.x),tx,s);y=sY+herm(f.y,capM(S.fv.y*D,ty-f.y),ty,s);rot=herm(f.rot,capM(S.fv.r*D,tr-f.rot),tr,s);
+  if(e>=RL.lvl){x=dxp;y=sY+ty;rot=tr}
+  const g=eIO(seg(e,RL.fall,RL.fall+750));P={leg:1-g,tuck:.95*(1-eIO(seg(e,RL.fall,RL.fall+600))),neck:.35*(1-g),hand:1-eIO(seg(e,RL.fall+250,RL.fall+950)),kk:eIO(seg(e,RL.fall+250,RL.fall+900))};
+  sc=mix(S.sc0,1,eIO(seg(e,RL.fall,RL.end-250)));if(!S.kicked&&e>RL.fall+350){S.kicked=true;kick=1}}
+ S.dv={x,y,rot,sc,P};if(e>=RL.end)endRoll()}
+function surfStep(t,e,sY,dxp,dyp,tilt){if(!S.s0)S.s0={x:dxp,y:dyp-sY,rot:tilt};const st=seat(t),ax=st.x-S.L*.07,ay=26,up=-Math.PI/2+.08;let x,y,rot,sc,P;
+ if(e<SF.climb0){const p=eIO(seg(e,0,SF.climb0));x=mix(S.s0.x,ax,p);y=sY+mix(S.s0.y,ay,p);rot=mix(S.s0.rot,up,eIO(seg(e,0,SF.climb0*.85)));sc=mix(1,S.sc0,p);P={leg:0,tuck:0,neck:.3*p,hand:0,kk:1}}
+ else{const c=eIO(seg(e,SF.climb0,SF.climb1)),[sx,sy]=fromHip(st.x,st.y,st.rot,S.sc0);x=mix(ax,sx,c);y=mix(sY+ay,sy,c);rot=mix(up,st.rot,c);sc=S.sc0;
+  P={leg:eIO(seg(e,SF.climb0+60,SF.climb1)),tuck:.45*Math.sin(Math.PI*c),neck:mix(.3,1.4,c),hand:0,kk:1-c};
+  if(e<SF.climb1+400&&Math.random()<.3)drops.push({x:x+(Math.random()-.5)*16*S.sc0,y:y-sY+8,vx:0,vy:.02,r:Math.random()*1.3+.6})}
+ if(!S.pop&&e>=SF.pop){S.pop=true;splash(ax,false,sY)}
+ S.dv={x,y,rot,sc,P};if(e>=SF.end){S.m="deck";S.e=0}}
+function beginRoll(done){if(S.m!=="deck"){S.m="deck";depth=target=0;S.co=null;S.snap=1}S.lay=deckLayout();if(S.snap>0||S.co===null){S.L=S.lay.L;S.bx=S.lay.bx;S.co=S.lay.wl-(vTop-70)}
+ S.co0=S.co;S.m="roll";S.e=0;S.sp=1;S.spl=false;S.kicked=false;S.f1=null;S.done=done}
+function endRoll(){if(S.m!=="roll")return;S.m="dive";S.sp=1;S.dv=null;const d=S.done;S.done=null;d&&d()}
+function beginAscent(){if(RM){S.m="deck";depth=target=0;S.co=null;S.snap=1;return}S.m="asc";S.aD=depth;S.aT=Math.max(1300,Math.min(3800,1000+depth*.3));S.e=-500;target=0;S.s0=null;S.pop=false}
+/* jeden snímek scény: kamera, loď, póza potápěče; vrací y hladiny na obrazovce */
+function sceneStep(t,dt,dxp,dyp,tilt){if(S.m!=="roll")S.lay=deckLayout();const lay=S.lay,k=S.snap>0||S.co===null?1:Math.min(1,dt/280);if(S.snap>0)S.snap--;
+ if(S.m!=="roll"){S.L+=(lay.L-S.L)*k;S.bx+=(lay.bx-S.bx)*k}
+ const coHome=lay.wl-(vTop-70);S.band=Math.max(26,Math.min(64,H*.07));S.sc0=S.L/300*.86;
+ if(S.m==="roll"||S.m==="surf")S.e+=dt*S.sp;const e=S.e;
+ if(S.m==="deck")S.co=S.co===null?coHome:S.co+(coHome-S.co)*k;
+ else if(S.m==="roll")S.co=S.co0*(1-eIO(seg(e,RL.cam0,RL.cam1)));
+ else if(S.m==="surf")S.co=coHome*eIO(seg(e,0,SF.cam));
+ else S.co=0;
+ const sY=vTop-70-depth*(H/900)+S.co;
+ S.r=Math.sin(t/1150)*.032+Math.sin(t/640+1)*.012;S.by=sY+wave(S.bx,t)*.5+Math.sin(t/930)*1.2+1;
+ S.dv=null;
+ if(S.m==="deck"){const s=seat(t),[x,y]=fromHip(s.x,s.y,s.rot,S.sc0);S.dv={x,y,rot:s.rot,sc:S.sc0,P:SEAT_P(t)}}
+ else if(S.m==="roll")rollStep(t,e,sY,dxp,dyp,tilt);
+ else if(S.m==="surf")surfStep(t,e,sY,dxp,dyp,tilt);
  return sY}
+/* obloha, slunce, mraky, moře k obzoru, čára hladiny, loď; při a<1 pohled zespodu (stříbřitá hladina) */
+function surfaceLayer(t,sY){const band=S.band,hz=sY-band,lay=S.lay;
+ cx.save();cx.translate(0,hz);cx.fillStyle=skyG();cx.fillRect(-2,-hz-2,W+4,hz+3);cx.restore();
+ // slunce a mraky (kreslí se z hotových spritů)
+ const sunH=Math.max(56,(lay.wl-band-vTop-70)*.58),sx=W*.82,sy=hz-sunH;cx.drawImage(SUN,sx-120,sy-120);
+ for(let i=0;i<3;i++){const s=[.85,.6,.42][i],cw=260*s,x=((i*.39+t/(90000+i*30000))%1)*(W+cw*2)-cw,y=hz-sunH*[1.15,.62,.3][i]-52*s;cx.globalAlpha=[.92,.8,.7][i];cx.drawImage(CLOUD,x,y,cw,104*s)}cx.globalAlpha=1;
+ // moře až k obzoru, vzdálené vlnky, odlesk slunce
+ cx.save();cx.translate(0,hz);cx.fillStyle=seaG(band);cx.beginPath();cx.moveTo(-2,0);cx.lineTo(W+2,0);for(let x=W+2;x>-16;x-=16)cx.lineTo(x,band+wave(x,t));cx.lineTo(-16,band+wave(-16,t));cx.closePath();cx.fill();
+ cx.fillStyle="rgba(255,255,255,.55)";cx.fillRect(0,0,W,1);
+ cx.strokeStyle="rgba(255,255,255,.2)";cx.lineWidth=1;for(let j=0;j<3;j++){const yy=band*(.3+j*.22);cx.beginPath();for(let x=0;x<=W+24;x+=24){const y=yy+Math.sin(x/(22+j*14)+t/(900-j*150)+j*2)*(.6+j*.5);x?cx.lineTo(x,y):cx.moveTo(x,y)}cx.stroke()}
+ cx.fillStyle="rgba(255,250,228,.8)";cx.beginPath();for(let i=0;i<12;i++){const f=i/12,w=(5+f*20)*(.3+.7*Math.abs(Math.sin(t/(170+i*23)+i*1.7))),xx=sx+Math.sin(i*2.3+t/900)*(5+f*16);cx.rect(xx-w/2,2+f*(band-7),w,1.2+f*1.3)}cx.fill();
+ cx.restore();
+ // kroužky na hladině po šplouchnutí
+ for(const r of rings){if(r.a<=0)continue;const k=r.a/1600,rx=(r.big?14:8)+k*(r.big?100:50),ry=2.2+k*(r.big?8:5);cx.strokeStyle=`rgba(255,255,255,${.75*(1-k)*(1-k)})`;cx.lineWidth=1.6*(1-k)+.6;cx.beginPath();cx.ellipse(r.x,sY+wave(r.x,t)*.6,rx,ry,0,0,7);cx.stroke()}
+ // čára hladiny a světlý pás těsně pod ní (hladina nad hlavou, když kamera sjíždí pod vodu)
+ undG();cx.save();cx.translate(0,sY);cx.fillStyle=UNB;cx.fillRect(0,0,W,60);cx.strokeStyle="rgba(255,255,255,.9)";cx.lineWidth=1.8;cx.beginPath();for(let x=-16;x<=W+16;x+=16){const y=wave(x,t);x>-16?cx.lineTo(x,y):cx.moveTo(x,y)}cx.stroke();
+ cx.strokeStyle="rgba(255,255,255,.22)";cx.lineWidth=1.2;for(let j=1;j<3;j++){cx.beginPath();for(let x=0;x<=W+20;x+=20){const y=j*13+Math.sin(x/(30+j*9)+t/(600-j*90)+j)*3;x?cx.lineTo(x,y):cx.moveTo(x,y)}cx.stroke()}cx.restore();
+ boat(t);
+ for(const f of foam){cx.fillStyle=`rgba(255,255,255,${.7*f.l})`;cx.beginPath();cx.ellipse(f.x,sY+wave(f.x,t)*.6,f.w,2+f.w*.12,0,0,7);cx.fill()}}
+/* šplouchnutí přes potápěče: vodní koruna, kapky, bílá voda pod hladinou */
+function splashFx(t,dt,sY){
+ for(let i=drops.length-1;i>=0;i--){const d=drops[i];d.x+=d.vx*dt;d.y+=d.vy*dt;d.vy+=.0011*dt;if(d.y>1&&d.vy>0)drops.splice(i,1)}
+ for(let i=rings.length-1;i>=0;i--)if((rings[i].a+=dt)>1600)rings.splice(i,1);
+ for(let i=foam.length-1;i>=0;i--){const f=foam[i];f.l-=dt/1700;f.w+=dt*.012;f.x+=f.s*dt;if(f.l<=0)foam.splice(i,1)}
+ if(wwater){const k=(wwater.a+=dt)/1300;if(k>=1)wwater=null;else{cx.globalAlpha=.55*(1-k);for(let i=0;i<4;i++){const r=(26+k*70)*(1-i*.15),x=wwater.x+(i-1.5)*14*(1+k),y=sY+20+i*9+k*30;cx.drawImage(FOAM,x-r,y-r,r*2,r*2)}cx.globalAlpha=1}}
+ if(crown){const k=(crown.a+=dt)/480;if(k>=1)crown=null;else{const h=(S.sc0*70+14)*Math.sin(Math.PI*Math.min(1,k*1.15)),w=7+k*10;cx.fillStyle=`rgba(240,252,255,${.85*(1-k)})`;cx.beginPath();
+  for(let i=-3;i<=3;i++){const bx=crown.x+i*w,hh=h*(1-Math.abs(i)/4.2),lean=i*k*4;cx.moveTo(bx-w*.45,sY+2);cx.quadraticCurveTo(bx+lean*.5,sY-hh*.6,bx+lean,sY-hh);cx.quadraticCurveTo(bx+lean*.5+w*.2,sY-hh*.5,bx+w*.45,sY+2)}cx.fill()}}
+ if(drops.length){cx.fillStyle="rgba(245,253,255,.95)";cx.beginPath();for(const d of drops){const y=sY+d.y;cx.moveTo(d.x+d.r,y);cx.arc(d.x,y,d.r,0,7)}cx.fill()}}
 function draw(t){const dt=Math.min(t-lastT,50)||16;lastT=t;frameAvg=frameAvg*.95+dt*.05;
  if(t>8000&&frameAvg>24&&Q>0&&!draw.cool){Q--;SBK=0;draw.cool=1;setTimeout(()=>draw.cool=0,3000);rs()}
- const prev=depth;depth+=(target-depth)*(RM?1:Math.min(1,dt/ease));const v=depth-prev;
+ const prev=depth;if(S.m==="asc"){S.e+=dt;depth=S.aD*(1-eIO(seg(S.e,0,S.aT)));if(S.e>=S.aT){depth=0;S.m="surf";S.e=0;S.s0=null;S.pop=false}}else depth+=(target-depth)*(RM?1:Math.min(1,dt/ease));const v=depth-prev;
  kick=Math.max(0,kick-dt/1400);hurt=Math.max(0,hurt-dt/700);
  // potápěč v prostoru mezi HUD a kartou
  const freeTop=vTop+66,freeBot=vTop+Math.max(card.offsetTop,140);const playing=stage.classList.contains("play");const want=playing?Math.min(vTop+card.offsetTop+card.offsetHeight+95,H-70):Math.max(freeTop+40,Math.min(freeTop+(freeBot-freeTop)*.42,vTop+230));dyS+=(want-dyS)*Math.min(1,dt/350);
  const dxp=W*.5+Math.sin(t/3100)*W*.04,dyp=dyS+Math.sin(t/900)*6+hurt*Math.sin(t/30)*4;
- const yOf=d=>dyp+40+(d-depth)*(H/900);
+ const tilt=.16+Math.sin(t/1300)*.05+Math.max(-.4,Math.min(v*.03,.55))+kick*.22-(target<depth-5?1:0);
+ const sY=sceneStep(t,dt,dxp,dyp,tilt),co=S.co,dco=co-S.coP;S.coP=co;
+ if(dco){for(const b of bub)b.y+=dco;for(const s of snow)s.y=((s.y+dco/H)%1+1)%1}
+ const yOf=d=>dyp+40+(d-depth)*(H/900)+co;
  const top=col(Math.max(0,depth-160)),bot=col(depth+750);
  const g=cx.createLinearGradient(0,0,0,H);g.addColorStop(0,rgb(top));g.addColorStop(1,rgb(bot));cx.fillStyle=g;cx.fillRect(0,0,W,H);
  cx.save();cx.globalCompositeOperation="lighter";
- const ra=Math.max(0,1-depth/700)*.15;if(ra>.002){for(let i=0;i<7;i++){const x=W*(i/6)+Math.sin(t/3400+i*1.7)*70,w=50+(i*37)%90;const lg=cx.createLinearGradient(0,0,0,H*.95);lg.addColorStop(0,`rgba(255,255,255,${ra*(1+Math.sin(t/1800+i)*.4)})`);lg.addColorStop(1,"rgba(255,255,255,0)");cx.fillStyle=lg;cx.beginPath();cx.moveTo(x-w/2,0);cx.lineTo(x+w/2,0);cx.lineTo(x+w*1.7-W*.12,H);cx.lineTo(x-w*1.3-W*.12,H);cx.fill()}}
- const ca=Q>=1?Math.max(0,1-depth/260)*.1:0;if(ca>.002){cx.strokeStyle=`rgba(255,255,255,${ca})`;cx.lineWidth=2;for(let j=0;j<5;j++){cx.beginPath();for(let x=0;x<=W;x+=14){const y=vTop+H*.04+j*28+Math.sin(x/53+t/900+j)*9+Math.sin(x/21-t/700)*4-depth*(H/900);x?cx.lineTo(x,y):cx.moveTo(x,y)}cx.stroke()}}
+ const ra=Math.max(0,1-depth/700)*.15,r0=Math.max(0,sY);if(ra>.002&&r0<H){for(let i=0;i<7;i++){const x=W*(i/6)+Math.sin(t/3400+i*1.7)*70,w=50+(i*37)%90;const lg=cx.createLinearGradient(0,r0,0,H*.95+r0);lg.addColorStop(0,`rgba(255,255,255,${ra*(1+Math.sin(t/1800+i)*.4)})`);lg.addColorStop(1,"rgba(255,255,255,0)");cx.fillStyle=lg;cx.beginPath();cx.moveTo(x-w/2,r0);cx.lineTo(x+w/2,r0);cx.lineTo(x+w*1.7-W*.12,H);cx.lineTo(x-w*1.3-W*.12,H);cx.fill()}}
+ const ca=Q>=1?Math.max(0,1-depth/260)*.1:0;if(ca>.002){cx.strokeStyle=`rgba(255,255,255,${ca})`;cx.lineWidth=2;for(let j=0;j<5;j++){cx.beginPath();for(let x=0;x<=W;x+=14){const y=vTop+H*.04+j*28+Math.sin(x/53+t/900+j)*9+Math.sin(x/21-t/700)*4-depth*(H/900)+co;x?cx.lineTo(x,y):cx.moveTo(x,y)}cx.stroke()}}
  cx.restore();
- const sy=yOf(0)-H*.32;if(sy>-50){const sg=cx.createLinearGradient(0,0,0,sy+8);sg.addColorStop(0,"rgba(255,255,255,.34)");sg.addColorStop(1,"rgba(255,255,255,.08)");cx.fillStyle=sg;cx.beginPath();cx.moveTo(0,0);for(let x=0;x<=W;x+=16)cx.lineTo(x,sy+Math.sin(x/38+t/620)*4+Math.sin(x/90-t/900)*3);cx.lineTo(W,0);cx.fill()}
  cx.font="600 11px -apple-system,Inter,sans-serif";cx.textBaseline="middle";
  for(let m=Math.max(500,Math.floor((depth-500)/500)*500);m<depth+900;m+=500){const y=yOf(m);if(y<0||y>H)continue;cx.strokeStyle="rgba(255,255,255,.12)";cx.setLineDash([3,6]);cx.beginPath();cx.moveTo(0,y);cx.lineTo(W*.22,y);cx.stroke();cx.setLineDash([]);cx.fillStyle="rgba(255,255,255,.35)";cx.fillText(m.toLocaleString("cs-CZ")+" m",10,y-9)}
  const deep=Math.min(1,Math.max(0,(depth-600)/1800));
  const GLOWY=new Set(["jelly","siph","lantern","hatchet","eel","vampire"]);
- const vis=LIFE.map(([k,d,xf,s])=>({k,d,x:px(xf,s,t,d),y:yOf(d),dir:s<0?-1:1})).filter(c=>c.y>-260&&c.y<H+260);
+ const vis=LIFE.map(([k,d,xf,s])=>({k,d,x:px(xf,s,t,d),y:yOf(d),dir:s<0?-1:1})).filter(c=>c.y>-260&&c.y<H+260&&c.y>sY+40);
  for(const c of vis){if(deep>.4&&GLOWY.has(c.k))continue;creature(c.k,c.x,c.y,t,c.d,depth>900,c.dir)}
- const sp=v*.9+.12,SN=Q>=2?snow.length:Q>=1?100:60;cx.fillStyle=depth>900?"rgba(200,245,255,.32)":"rgba(255,255,255,.22)";cx.beginPath();for(let i=0;i<SN;i++){const s=snow[i];s.y-=(sp*s.r*.004*s.z)+.00018*s.r;if(s.y<0){s.y=1;s.x=Math.random()}if(s.y>1)s.y=0;const x=s.x*W+Math.sin(t/2100+s.w)*6,y=s.y*H;cx.moveTo(x+s.r,y);cx.arc(x,y,s.r,0,7)}cx.fill();
- const tilt=.16+Math.sin(t/1300)*.05+Math.min(v*.03,.55)+kick*.22-(target<depth-5?1:0);
+ const sp=v*.9+.12,SN=Q>=2?snow.length:Q>=1?100:60;cx.fillStyle=depth>900?"rgba(200,245,255,.32)":"rgba(255,255,255,.22)";cx.beginPath();for(let i=0;i<SN;i++){const s=snow[i];s.y-=(sp*s.r*.004*s.z)+.00018*s.r;if(s.y<0){s.y=1;s.x=Math.random()}if(s.y>1)s.y=0;const x=s.x*W+Math.sin(t/2100+s.w)*6,y=s.y*H;if(y<sY+4)continue;cx.moveTo(x+s.r,y);cx.arc(x,y,s.r,0,7)}cx.fill();
+ const swim=S.m==="dive"||S.m==="asc";
  const[hx,hy]=head(dxp,dyp,tilt);
  if(deep>0){dx.globalCompositeOperation="source-over";dx.clearRect(0,0,W*2,H*2);dx.fillStyle=`rgba(0,3,10,${.84*deep})`;dx.fillRect(0,0,W,H);dx.globalCompositeOperation="destination-out";
   const ang=tilt+.32+Math.sin(t/2300)*.08,len=Math.max(W,H)*.8,spr=.34;const lg=dx.createRadialGradient(hx,hy,0,hx,hy,len);lg.addColorStop(0,"rgba(0,0,0,1)");lg.addColorStop(.5,"rgba(0,0,0,.78)");lg.addColorStop(1,"rgba(0,0,0,0)");dx.fillStyle=lg;dx.beginPath();dx.moveTo(hx,hy);dx.arc(hx,hy,len,ang-spr,ang+spr);dx.closePath();dx.fill();
@@ -314,15 +402,17 @@ function draw(t){const dt=Math.min(t-lastT,50)||16;lastT=t;frameAvg=frameAvg*.95
   for(let i=0;i<14;i++){const a=ang+(((i*.37)%1)-.5)*spr*1.4,r=((t/40+i*61)%(len*.7))+30;cx.fillStyle=`rgba(255,255,255,${.35*deep*(1-r/(len*.7))})`;cx.beginPath();cx.arc(hx+Math.cos(a)*r,hy+Math.sin(a)*r,1.2,0,7);cx.fill()}cx.restore()}
  if(deep>.05){cx.save();cx.globalCompositeOperation="lighter";cx.globalAlpha=deep*.55;for(const col of["#8ff7ff","#a9ffcf"]){cx.fillStyle=col;cx.beginPath();for(const p of glow){if(p.c!==col||Math.sin(t/700+p.p)<0)continue;const x=p.x*W,y=((p.y-depth/4000)%1+1)%1*H;cx.moveTo(x+1.7,y);cx.arc(x,y,1.7,0,7)}cx.fill()}cx.restore();cx.globalAlpha=1}
  for(const c of vis){if(deep>.4&&GLOWY.has(c.k))creature(c.k,c.x,c.y,t,c.d,true,c.dir);if(c.k==="angler")lure(c.x,c.y,t,c.dir)}
- const[mx,my]=mouth(dxp,dyp,tilt);
- if(!intro&&t>nextBreath){nextBreath=t+1500+Math.random()*900;for(let i=0;i<6;i++)bub.push({x:mx,y:my,r:Math.random()*3+1.4,vy:Math.random()*.8+1,d:i*80,w:Math.random()*6})}
- if(!intro&&v>1&&bub.length<90&&Math.random()<.5)bub.push({x:dxp-40+(Math.random()-.5)*16,y:dyp,r:Math.random()*2.5+1.2,vy:Math.random()*1.2+1.4,d:0,w:Math.random()*6});
- for(let i=bub.length-1;i>=0;i--){const b=bub[i];if(b.d>0){b.d-=dt;continue}b.y-=b.vy*dt/16;b.x+=Math.sin(b.y/18+b.w)*.5;cx.drawImage(BUB,b.x-b.r,b.y-b.r,b.r*2,b.r*2);if(b.y<-10)bub.splice(i,1)}
- let iSY=null;if(intro)iSY=introFrame(t,dxp,dyp,tilt);if(!intro)diver(dxp,dyp,t,tilt);
- if(iSY!==null)for(let i=bub.length-1;i>=0;i--)if(bub[i].y<iSY+4)bub.splice(i,1);
- if(deep>0&&!intro){cx.save();cx.globalCompositeOperation="lighter";cx.fillStyle="rgba(255,250,220,.95)";cx.shadowBlur=16;cx.shadowColor="#fff6c8";cx.beginPath();cx.arc(hx,hy,2.6,0,7);cx.fill();cx.restore()}
+ // dech: bubliny z automatiky, jen když je potápěč pod vodou
+ const dv=S.dv;let mx,my;if(dv){const[a,b]=rot2(38*1.18*dv.sc,1.18*dv.sc,dv.rot);mx=dv.x+a;my=dv.y+b}else[mx,my]=mouth(dxp,dyp,tilt);
+ if(t>nextBreath&&my>sY+12&&S.m!=="deck"){nextBreath=t+1500+Math.random()*900;for(let i=0;i<6;i++)bub.push({x:mx,y:my,r:Math.random()*3+1.4,vy:Math.random()*.8+1,d:i*80,w:Math.random()*6})}
+ if(swim&&v>1&&bub.length<90&&Math.random()<.5)bub.push({x:dxp-40+(Math.random()-.5)*16,y:dyp,r:Math.random()*2.5+1.2,vy:Math.random()*1.2+1.4,d:0,w:Math.random()*6});
+ for(let i=bub.length-1;i>=0;i--){const b=bub[i];if(b.d>0){b.d-=dt;continue}b.y-=b.vy*dt/16;b.x+=Math.sin(b.y/18+b.w)*.5;if(b.y<sY+3||b.y<-10){bub.splice(i,1);continue}cx.drawImage(BUB,b.x-b.r,b.y-b.r,b.r*2,b.r*2)}
+ if(sY>-90)surfaceLayer(t,sY);
+ if(dv){cx.save();cx.translate(dv.x,dv.y);cx.scale(dv.sc,dv.sc);diver(0,0,t,dv.rot,dv.P);cx.restore()}else diver(dxp,dyp,t,tilt);
+ if(sY>-120)splashFx(t,dt,sY);
+ if(deep>0&&swim){cx.save();cx.globalCompositeOperation="lighter";cx.fillStyle="rgba(255,250,220,.95)";cx.shadowBlur=16;cx.shadowColor="#fff6c8";cx.beginPath();cx.arc(hx,hy,2.6,0,7);cx.fill();cx.restore()}
  cx.save();cx.globalCompositeOperation="lighter";for(let i=sparks.length-1;i>=0;i--){const s=sparks[i];s.x+=s.vx*dt/16;s.y+=s.vy*dt/16;s.vy+=.02;s.l-=dt/950;if(s.l<=0){sparks.splice(i,1);continue}cx.globalAlpha=s.l;cx.fillStyle=s.c;cx.shadowBlur=12;cx.shadowColor=s.c;cx.beginPath();cx.arc(s.x,s.y,s.r*s.l+.4,0,7);cx.fill()}cx.restore();
- cx.globalAlpha=.22+deep*.3;cx.drawImage(VIG,0,0,W,H);cx.globalAlpha=1;
+ cx.globalAlpha=.22*Math.min(1,Math.max(.25,(vTop-sY)/H))+deep*.3;cx.drawImage(VIG,0,0,W,H);cx.globalAlpha=1;
  const dmT=fmt(depth);if($("dm").textContent!==dmT)$("dm").textContent=dmT;$("mark").style.top=Math.min(depth/11000,1)*100+"%";
  requestAnimationFrame(draw)}
 requestAnimationFrame(draw);
@@ -344,6 +434,9 @@ function nextPrompt(l){gen(l);gen(Math.min(4,l+1));
  if(aiQ[l].length&&Math.random()<.55){const i=Math.max(0,aiQ[l].findIndex(p=>!run.fams.has("dom:"+p.d)));const p=aiQ[l].splice(i,1)[0];run.asked.add(p.q);run.fams.add("dom:"+p.d);run.lastKind="ai";st.used.push(p.q);save();return{q:p.q,ai:true}}
  const pick=pickTopic(st,run,l);save();return{q:pick.q,ai:false}}
 function start(){run={o2:3,pts:0,n:0,ans:[],best:null,asked:new Set(),fams:new Set()};lastZone="Sluneční zóna";target=0;o2();
+ // poloha lodi a hladiny se změří ještě s úvodní kartou, pak se karta přepne do herního rozložení
+ const done=()=>{document.removeEventListener("pointerdown",skip,true);stage.classList.remove("intro");card.classList.remove("in");void card.offsetWidth;card.classList.add("in");ask()};
+ if(RM){S.m="dive";S.co=0;S.dv=null;depth=0}else{beginRoll(done);stage.classList.add("intro")}
  stage.classList.add("play");card.classList.remove("out","in");
  card.innerHTML=`<div class="prog" id="prog"><i id="bar"></i></div><div class="panel" id="pn"></div>
  <form class="glass field" id="f" autocomplete="off"><input id="a" placeholder="Tvoje odpověď" aria-label="Odpověď" enterkeyhint="send" autocapitalize="sentences" autocorrect="off" spellcheck="false"><button class="go" id="sb" aria-label="Odeslat">${ARROW}</button></form>
@@ -355,10 +448,9 @@ function start(){run={o2:3,pts:0,n:0,ans:[],best:null,asked:new Set(),fams:new S
  // iOS otevře klávesnici jen při fokusu v rámci tapnutí → fokus hned teď, karta je zatím neviditelná
  const a=$("a");try{a.focus({preventScroll:true})}catch(e){}
  if(RM){ask();return}
- stage.classList.add("intro");
- const skip=e=>{if(e.target&&e.target.closest&&e.target.closest("#f"))return;e.preventDefault();try{a.focus({preventScroll:true})}catch(_){}endIntro()};
- document.addEventListener("pointerdown",skip,true);
- startIntro(()=>{document.removeEventListener("pointerdown",skip,true);stage.classList.remove("intro");card.classList.remove("in");void card.offsetWidth;card.classList.add("in");ask()})}
+ // tapnutí během seskoku ho zrychlí (doběhne plynule za zlomek sekundy), fokus inputu zůstane
+ function skip(e){if(e.target&&e.target.closest&&e.target.closest("#f"))return;e.preventDefault();try{a.focus({preventScroll:true})}catch(_){}S.sp=6}
+ document.addEventListener("pointerdown",skip,true)}
 function ask(){busy=false;advT=null;run.n++;run.lvl=lvlFor(run.n);const p=nextPrompt(run.lvl);run.q=p.q;run.ai=p.ai;
  limit=run.n>16?Math.max(10,15-(run.n-16)*.5):({1:25,2:21,3:18,4:15})[run.lvl];left=limit;
  const pn=$("pn");pn.className="panel";pn.onclick=null;pn.innerHTML=`<div style="animation:fade .45s both"><div class="qn">#${run.n} · ${LVN[run.lvl]}</div>${(()=>{const m=run.q.match(/^(.*) \((na písmeno .+|aspoň \d+ písmen)\)$/);return m?`<div class="q">${esc(m[1])}</div><div class="tag">${esc(m[2])}</div>`:`<div class="q">${esc(run.q)}</div>`})()}</div>`;
@@ -387,14 +479,14 @@ function lose(why,r){clearInterval(timer);run.o2--;run.ans.push(0);o2({i:run.o2,
 function advance(){if(!advT)return;clearTimeout(advT);advT=null;if(run.o2<=0)end();else ask()}
 function end(){clearInterval(timer);const a=$("a");a&&a.blur();stage.classList.remove("play");const m=run.pts*10,rec=m>st.best;if(rec)st.best=m;st.runs++;save();
  const z=zoneOf(m),T=run.best?TIERS[run.best.t]:null;
- swap(`<div class="qn">Došel kyslík</div><div class="big">${fmt(m)}</div><div class="zone">${esc(z)}${rec&&m>0?" · nový rekord":""}</div>
+ swap(`<div class="end"><div class="qn">Došel kyslík</div><div class="big">${fmt(m)}</div><div class="zone">${esc(z)}${rec&&m>0?" · nový rekord":""}</div>
  <div class="tcap">Vzácnost odpovědí (1 = běžná, 5 = nejvzácnější, ✕ = chyba)</div><div class="chips">${run.ans.map((v,i)=>`<span style="--i:${i};${v?`color:${TIERS[v-1].c};box-shadow:inset 0 0 0 1px ${TIERS[v-1].c}66`:"color:rgba(255,255,255,.35)"}">${v||"✕"}</span>`).join("")}</div>
  ${(()=>{const ok=run.ans.filter(v=>v);return ok.length?`<div class="avg">Průměrná vzácnost <b>${(ok.reduce((a,b)=>a+b,0)/ok.length).toLocaleString("cs-CZ",{maximumFractionDigits:1,minimumFractionDigits:1})} / 5</b></div>`:""})()}
  <div class="meta"><span>Otázek <b>${run.n}</b></span>${T?`<span>Nejvzácnější <b style="color:${T.c}">${esc(run.best.a)}</b></span>`:""}<span>Rekord <b>${fmt(st.best)}</b></span></div>
- <div class="row"><button class="btn" id="nx">Ponořit se znovu</button><button class="btn g" id="cp">Sdílet</button></div>`,()=>{
+ <div class="row"><button class="btn" id="nx">Ponořit se znovu</button><button class="btn g" id="cp">Sdílet</button></div></div>`,()=>{
   if(rec&&m>0)burst("#ffd36e",70);
   $("nx").onclick=start;
   $("cp").onclick=async()=>{const sq=["⬛","🟩","🟧","🟦","🟪","🟨"];const txt=`Krillion · ${fmt(m)} · ${z}\n${run.ans.map(v=>sq[v]).join("")}`;try{await navigator.clipboard.writeText(txt);toast("Zkopírováno")}catch(e){toast("Kopírování nejde")}}});
- setTimeout(()=>setDepth(0,true),1600);run.o2=0}
+ const r0=run;setTimeout(()=>{if(run===r0&&S.m==="dive")beginAscent()},700);run.o2=0}
 o2();home();
 }
