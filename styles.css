@@ -178,3 +178,10 @@ body:has(.stage.intro) .hud{opacity:0}
 .fact{font-size:13.5px;line-height:1.35;margin-top:2px;padding:8px 12px;border-radius:14px;background:rgba(255,211,110,.1);box-shadow:inset 0 0 0 1px rgba(255,211,110,.28);text-wrap:balance;animation:fade .4s .2s both}
 .fact b{color:#ffd36e;font-weight:700}
 @media(max-width:560px){.pill{gap:10px;padding-left:18px}.o2 i{width:26px;height:26px}.streak{font-size:17px}}
+/* telefony: přechody karet a nadpisů bez rozmazání (filter: blur na velkých prvcích na iPhonu trhá snímky), sdílecí tlačítko bez backdrop-filter */
+@media(pointer:coarse){.card{transition:opacity .18s,transform .18s}.card.out{filter:none}
+ @keyframes rise{from{opacity:0;transform:translateY(18px) scale(.97)}}
+ @keyframes pop{0%{opacity:0;transform:scale(.6)}100%{opacity:1;transform:none}}
+ .btn.g{-webkit-backdrop-filter:none;backdrop-filter:none;background:rgba(255,255,255,.16)}}
+/* skrytý toast nemá točit odleskem rámečku (zbytečné překreslování v každém snímku) */
+.toast:not(.on)::after{animation-play-state:paused}
