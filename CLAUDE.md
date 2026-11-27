@@ -1,0 +1,15 @@
+# Krillion – poznámky pro Claude Code
+
+Česká trivia hra bez frameworku a bez build kroku: čisté HTML/CSS/JS, nasazení na Vercel.
+
+## Jak to funguje
+- `src/game.js` – jeden IIFE blok. Části: rozpoznávání odpovědí (`norm`, `lev`, `strong`, `weak`, `localJudge`, `looseLocal`), stav a paměť (`st`, `save`, localStorage), napojení na Clauda (`askAI`, `gen`, `aiJudge`), vykreslování oceánu na canvas (`draw`, `creature`, `diver`), herní smyčka (`start`, `ask`, `submit`, `win`, `lose`, `end`).
+- `data/questions.js` – `window.KRILLION_DATA`: `[obtížnost 1–4, zadání, "odp1|alias,odp2,..."]`, odpovědi seřazené od nejčastější po nejvzácnější (pořadí = vzácnost 1–5).
+- `src/shim.js` – emuluje `window.claude.use("sample")` z claude.ai přes `fetch("/api/ai")`. `db` a `user` vrací null → stav jen v localStorage.
+- `api/ai.js` – Vercel serverless funkce, volá Anthropic Messages API. Klíč `ANTHROPIC_API_KEY` jen v env. Přijímá pouze prompty začínající prefixy hry (`ALLOWED_PREFIXES`) – když měníš text promptů v `game.js`, ponech začátek stejný nebo uprav prefixy.
+
+## Pravidla
+- UI texty jsou česky.
+- Výkon na iPhonu je priorita: žádný `backdrop-filter` na mobilu, žádný `shadowBlur` na mobilu (řeší se přes `SBK`), cachované gradienty a sprity, adaptivní kvalita `Q`.
+- Hodnoty od Clauda nebo z dat vkládej přes `esc()` / `textContent`, nikdy jako HTML.
+- Po změně ověř: `node -e "new Function(require('fs').readFileSync('src/game.js','utf8'))"` a otevři hru přes `npm run dev`.

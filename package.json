@@ -1,0 +1,11 @@
+{
+  "name": "krillion",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Krillion – nekonečný ponor. Česká trivia hra o co nejvzácnější odpovědi.",
+  "scripts": {
+    "dev": "npx --yes serve .",
+    "dev:ai": "npx --yes vercel dev"
+  }
+}
