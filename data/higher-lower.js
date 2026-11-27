@@ -3,7 +3,10 @@
 //     takže páry se skládají automaticky (i napříč kategoriemi: „Bajkal, nebo Belgie?“).
 // G = skupiny položek: {v: veličina, c: kategorie, s: zdroj/poznámka, a: 1 = přibližné hodnoty (ukáže se „~“),
 //     min: nejmenší poměr hodnot, při kterém se pár smí zeptat (vždy aspoň 1,05 = rozdíl 5 %; u odhadů víc),
-//     y: 1 = hodnota je rok vzniku (hra porovnává stáří), i: [[název, hodnota, poznámka?], ...]}
+//     y: 1 = hodnota je rok vzniku (hra porovnává stáří), i: [[název, hodnota, poznámka?], ...],
+//     f: známost položek 1–3 (1 = zná každý, 3 = méně známé), k: [názvy, které zná každý → 1], h: [méně známé názvy → 3]}
+// Obtížnost otázky (Lehká–Expert) se počítá z poměru hodnot a známosti: velký rozdíl + známé věci = lehká.
+// X = překvapivá srovnání (pevné páry se zajímavostí), viz konec souboru.
 // Do dat patří jen hodnoty, které jsou fakticky ověřitelné; nejisté položky raději vůbec.
 window.KRILLION_HL={
 V:{
@@ -35,7 +38,7 @@ V:{
 },
 G:[
 // ---------- obyvatelé ----------
-{v:"obyv",c:"Česko",s:"ČSÚ, 2024 (zaokrouhleno)",a:1,min:1.1,i:[
+{f:2,k:["Praha","Brno","Ostrava","Plzeň","Liberec","Olomouc","České Budějovice","Hradec Králové","Pardubice","Ústí nad Labem","Zlín","Karlovy Vary","Jihlava"],v:"obyv",c:"Česko",s:"ČSÚ, 2024 (zaokrouhleno)",a:1,min:1.1,i:[
  ["Praha",1384000],["Brno",402000],["Ostrava",283000],["Plzeň",185000],["Liberec",104000],["Olomouc",101000],
  ["České Budějovice",97000],["Hradec Králové",93000],["Pardubice",92000],["Ústí nad Labem",91000],["Zlín",74000],
  ["Havířov",69000],["Kladno",69000],["Most",63000],["Opava",55000],["Jihlava",54000],["Frýdek-Místek",54000],
@@ -44,12 +47,12 @@ G:[
  ["Třebíč",34000],["Tábor",34000],["Znojmo",34000],["Kolín",33000],["Příbram",32000],["Cheb",31000],
  ["Písek",30000],["Trutnov",30000],["Kroměříž",28000],["Šumperk",25000],["Uherské Hradiště",25000],
  ["Kutná Hora",21000],["Český Krumlov",13000],["Mikulov",7400],["Telč",5200]]},
-{v:"obyv",c:"Česko",s:"kraje ČR, ČSÚ 2024 (zaokrouhleno)",a:1,min:1.1,i:[
+{f:2,v:"obyv",c:"Česko",s:"kraje ČR, ČSÚ 2024 (zaokrouhleno)",a:1,min:1.1,i:[
  ["Středočeský kraj",1455000],["Jihomoravský kraj",1227000],["Moravskoslezský kraj",1177000],["Ústecký kraj",800000],
  ["Jihočeský kraj",650000],["Olomoucký kraj",630000],["Plzeňský kraj",600000],["Zlínský kraj",580000],
  ["Královéhradecký kraj",555000],["Pardubický kraj",527000],["Kraj Vysočina",513000],["Liberecký kraj",448000],
  ["Karlovarský kraj",294000]]},
-{v:"obyv",c:"Svět",s:"OSN a národní statistiky, 2024 (zaokrouhleno)",a:1,min:1.12,i:[
+{f:2,k:["Indie","Čína","USA","Rusko","Japonsko","Německo","Francie","Spojené království","Itálie","Španělsko","Polsko","Česko","Slovensko","Rakousko","Maďarsko","Kanada","Austrálie","Brazílie","Mexiko","Island","Monako","Lichtenštejnsko","Egypt","Švédsko","Norsko","Nizozemsko","Švýcarsko"],h:["Mongolsko","Peru","Chile","Maroko","Bangladéš","Etiopie","Lotyšsko","Estonsko","Slovinsko","Litva"],v:"obyv",c:"Svět",s:"OSN a národní statistiky, 2024 (zaokrouhleno)",a:1,min:1.12,i:[
  ["Indie",1450000000],["Čína",1410000000],["USA",340000000],["Indonésie",280000000],["Pákistán",245000000],
  ["Nigérie",230000000],["Brazílie",212000000],["Bangladéš",172000000],["Rusko",145000000],["Mexiko",130000000],
  ["Japonsko",124000000],["Etiopie",130000000],["Filipíny",115000000],["Egypt",115000000],["Vietnam",100000000],
@@ -63,12 +66,12 @@ G:[
  ["Chorvatsko",3850000],["Mongolsko",3500000],["Litva",2900000],["Slovinsko",2120000],["Lotyšsko",1870000],
  ["Estonsko",1370000],["Lucembursko",670000],["Malta",560000],["Island",390000],["Grónsko",56000],
  ["Lichtenštejnsko",40000],["Monako",38000],["San Marino",34000]]},
-{v:"obyv",c:"Svět",s:"město v administrativních hranicích, 2023–2024 (zaokrouhleno)",a:1,min:1.12,i:[
+{f:2,k:["Londýn (Velký Londýn)","New York","Berlín","Paříž","Vídeň","Řím","Bratislava"],h:["Hamburk","Kodaň","Lisabon","Amsterdam"],v:"obyv",c:"Svět",s:"město v administrativních hranicích, 2023–2024 (zaokrouhleno)",a:1,min:1.12,i:[
  ["Londýn (Velký Londýn)",8900000],["New York",8300000],["Los Angeles",3800000],["Berlín",3750000],["Madrid",3400000],
  ["Řím",2750000],["Paříž",2100000],["Vídeň",2000000],["Hamburk",1900000],["Varšava",1860000],["Budapešť",1700000],
  ["Mnichov",1500000],["Amsterdam",930000],["Kodaň",660000],["Lisabon",550000],["Bratislava",475000]]},
 // ---------- rozloha ----------
-{v:"rozloha",c:"Svět",s:"rozloha státu",min:1.05,i:[
+{f:2,k:["Rusko","Kanada","USA","Čína","Brazílie","Austrálie","Indie","Česko","Německo","Francie (evropská část)","Slovensko","Rakousko","Polsko","Itálie","Spojené království","Vatikán","Monako","Japonsko","Španělsko","Egypt"],h:["Čad","Súdán","Libye","Mongolsko","Kolumbie","Nigérie","Keňa","Vietnam","Estonsko","Lotyšsko","Litva","Slovinsko","Bulharsko","Rumunsko"],v:"rozloha",c:"Svět",s:"rozloha státu",min:1.05,i:[
  ["Rusko",17098246],["Kanada",9984670],["USA",9833517],["Čína",9596961],["Brazílie",8515767],["Austrálie",7692024],
  ["Indie",3287263],["Argentina",2780400],["Kazachstán",2724900],["Alžírsko",2381741],["DR Kongo",2344858],
  ["Saúdská Arábie",2149690],["Mexiko",1964375],["Indonésie",1904569],["Súdán",1886068],["Libye",1759540],
@@ -82,44 +85,44 @@ G:[
  ["Dánsko (bez Grónska)",42933],["Nizozemsko",41850],["Švýcarsko",41285],["Belgie",30689],["Slovinsko",20271],
  ["Kypr",9251],["Lucembursko",2586],["Singapur",735],["Malta",316],["Lichtenštejnsko",160],["San Marino",61],
  ["Monako",2.02],["Vatikán",0.49]]},
-{v:"rozloha",c:"Příroda",s:"rozloha ostrova",min:1.05,i:[
+{f:2,k:["Grónsko","Madagaskar","Velká Británie (ostrov)","Sicílie","Kréta","Mallorca","Manhattan"],h:["Sulawesi","Baffinův ostrov","Rujána","Honšú","Sumatra"],v:"rozloha",c:"Příroda",s:"rozloha ostrova",min:1.05,i:[
  ["Grónsko",2166086],["Nová Guinea",785753],["Borneo",748168],["Madagaskar",587041],["Baffinův ostrov",507451],
  ["Sumatra",443066],["Honšú",227960],["Velká Británie (ostrov)",209331],["Sulawesi",180681],
  ["Jižní ostrov (Nový Zéland)",150437],["Irsko (celý ostrov)",84421],["Tasmánie",68401],["Srí Lanka",65610],
  ["Sicílie",25711],["Sardinie",24090],["Havaj (Velký ostrov)",10432],["Korsika",8680],["Kréta",8336],
  ["Bali",5780],["Mallorca",3640],["Tenerife",2034],["Rujána",926],["Manhattan",59.1]]},
-{v:"rozloha",c:"Příroda",s:"plocha jezera (kolísá s hladinou)",a:1,min:1.1,i:[
+{f:2,k:["Kaspické moře","Bajkal","Lipno","Balaton","Viktoriino jezero"],h:["Velké Medvědí jezero","Ladožské jezero","Malawi","Huronské jezero","Michiganské jezero"],v:"rozloha",c:"Příroda",s:"plocha jezera (kolísá s hladinou)",a:1,min:1.1,i:[
  ["Kaspické moře",371000],["Hořejší jezero",82100],["Viktoriino jezero",68870],["Huronské jezero",59600],
  ["Michiganské jezero",58000],["Tanganika",32600],["Bajkal",31500],["Velké Medvědí jezero",31080],["Malawi",29600],
  ["Ladožské jezero",17700],["Titicaca",8372],["Balaton",592],["Ženevské jezero",580],["Bodamské jezero",536],
  ["Lago di Garda",370],["Loch Ness",56],["Lipno",48.7]]},
-{v:"rozloha",c:"Svět",s:"rozloha kontinentu (podle běžného dělení)",a:1,min:1.1,i:[
+{f:1,v:"rozloha",c:"Svět",s:"rozloha kontinentu (podle běžného dělení)",a:1,min:1.1,i:[
  ["Asie",44579000],["Afrika",30370000],["Severní Amerika",24709000],["Jižní Amerika",17840000],
  ["Antarktida",14200000],["Evropa",10180000]]},
-{v:"rozloha",c:"Příroda",s:"rozloha pouště (hranice nejsou ostré)",a:1,min:1.2,i:[
+{f:1,v:"rozloha",c:"Příroda",s:"rozloha pouště (hranice nejsou ostré)",a:1,min:1.2,i:[
  ["Sahara",9200000],["Arabská poušť",2330000],["Gobi",1295000]]},
-{v:"rozloha",c:"Česko",s:"rozloha kraje, ČSÚ",min:1.05,i:[
+{f:2,k:["Středočeský kraj","Jihočeský kraj","Praha"],v:"rozloha",c:"Česko",s:"rozloha kraje, ČSÚ",min:1.05,i:[
  ["Středočeský kraj",10929],["Jihočeský kraj",10058],["Plzeňský kraj",7649],["Jihomoravský kraj",7188],
  ["Kraj Vysočina",6796],["Moravskoslezský kraj",5427],["Ústecký kraj",5335],["Olomoucký kraj",5272],
  ["Královéhradecký kraj",4759],["Pardubický kraj",4519],["Zlínský kraj",3963],["Karlovarský kraj",3310],
  ["Liberecký kraj",3163],["Praha",496]]},
-{v:"rozloha",c:"Svět",s:"rozloha města v jeho hranicích",min:1.05,i:[
+{f:2,k:["Brno","Paříž","Londýn (Velký Londýn)","Vídeň"],v:"rozloha",c:"Svět",s:"rozloha města v jeho hranicích",min:1.05,i:[
  ["Londýn (Velký Londýn)",1572],["Řím",1285],["Berlín",891],["Budapešť",525],["Vídeň",415],["Bratislava",368],
  ["Brno",230],["Ostrava",214],["Plzeň",138],["Paříž",105]]},
 // ---------- výšky ----------
-{v:"hora",c:"Hory",s:"nadmořská výška vrcholu",min:1.05,i:[
+{f:2,k:["Mount Everest","K2","Mont Blanc","Kilimandžáro","Matterhorn","Fudži","Olymp","Vesuv","Gerlachovský štít","Rysy","Aconcagua","Elbrus"],h:["Lhoce","Makalu","Čo Oju","Dhaulágirí","Manáslu","Nanga Parbat","Musala","Puncak Jaya","Mount Vinson","Kosciuszko","Triglav"],v:"hora",c:"Hory",s:"nadmořská výška vrcholu",min:1.05,i:[
  ["Mount Everest",8849],["K2",8611],["Kančendženga",8586],["Lhoce",8516],["Makalu",8485],["Čo Oju",8188],
  ["Dhaulágirí",8167],["Manáslu",8163],["Nanga Parbat",8126],["Annapurna",8091],["Aconcagua",6961],["Denali",6190],
  ["Kilimandžáro",5895],["Elbrus",5642],["Ararat",5137],["Mount Vinson",4892],["Puncak Jaya",4884],
  ["Mont Blanc",4806],["Matterhorn",4478],["Mauna Kea",4207],["Grossglockner",3798],["Fudži",3776],["Teide",3715],
  ["Zugspitze",2962],["Musala",2925],["Olymp",2918],["Triglav",2864],["Gerlachovský štít",2655],
  ["Lomnický štít",2634],["Rysy",2501],["Kriváň",2494],["Kosciuszko",2228],["Ben Nevis",1345],["Vesuv",1281]]},
-{v:"hora",c:"Česko",s:"nadmořská výška vrcholu",min:1.05,i:[
+{f:2,k:["Sněžka","Praděd","Lysá hora","Ještěd","Říp","Petřín","Klínovec","Radhošť"],h:["Studniční hora","Keprník","Plechý","Smrk","Velká Deštná","Králický Sněžník"],v:"hora",c:"Česko",s:"nadmořská výška vrcholu",min:1.05,i:[
  ["Sněžka",1603],["Luční hora",1555],["Studniční hora",1554],["Praděd",1491],["Králický Sněžník",1424],
  ["Keprník",1423],["Plechý",1378],["Boubín",1362],["Lysá hora",1323],["Klínovec",1244],["Radhošť",1129],
  ["Smrk",1124],["Velká Deštná",1116],["Kleť",1084],["Ještěd",1012],["Milešovka",837],["Velký Blaník",638],
  ["Říp",456],["Petřín",327]]},
-{v:"vyska",c:"Stavby",s:"výška stavby (u mrakodrapů architektonická výška)",min:1.05,i:[
+{f:2,k:["Burdž Chalífa","Eiffelova věž","Empire State Building","Žižkovská věž","Petřínská rozhledna","Big Ben (Elizabeth Tower)","Socha Svobody (s podstavcem)","Šikmá věž v Pise","Velká pyramida v Gíze (dnes)","Katedrála sv. Víta (hlavní věž)","One World Trade Center","Ještěd (hotel a vysílač)"],h:["Abraj Al-Bait","Ping An Finance Center","Lotte World Tower","Merdeka 118","Ulmský chrám","Gateway Arch"],v:"vyska",c:"Stavby",s:"výška stavby (u mrakodrapů architektonická výška)",min:1.05,i:[
  ["Burdž Chalífa",828],["Merdeka 118",679],["Tokyo Skytree",634],["Shanghai Tower",632],["Abraj Al-Bait",601],
  ["Ping An Finance Center",599],["Lotte World Tower",555],["CN Tower",553],["One World Trade Center",541],
  ["Taipei 101",508],["Petronas Towers",452],["Willis Tower",442],["Empire State Building",381,"bez antény (s anténou 443 m)"],
@@ -128,10 +131,10 @@ G:[
  ["Velká pyramida v Gíze (dnes)",138.5],["AZ Tower Brno",111],["Katedrála sv. Víta (hlavní věž)",96.5],
  ["Big Ben (Elizabeth Tower)",96],["Ještěd (hotel a vysílač)",94],["Socha Svobody (s podstavcem)",93],
  ["Petřínská rozhledna",63.5],["Šikmá věž v Pise",56],["Socha Krista Spasitele (s podstavcem)",38]]},
-{v:"vyska",c:"Příroda",s:"výška (stromy a zvířata přibližně)",a:1,min:1.08,i:[
+{f:1,v:"vyska",c:"Příroda",s:"výška (stromy a zvířata přibližně)",a:1,min:1.08,i:[
  ["Salto Angel (vodopád)",979],["Hyperion (nejvyšší strom)",116],["Niagarské vodopády (Podkova)",51],
  ["Dospělá žirafa (samec)",5.5]]},
-{v:"reka",c:"Příroda",s:"délka toku (zdroje se liší podle měření)",a:1,min:1.1,i:[
+{f:2,k:["Nil","Amazonka","Dunaj","Vltava","Labe","Rýn","Mississippi s Missouri","Volha","Temže","Seina","Morava","Odra"],h:["Jenisej","Lena","Amur","Paraná","Ob s Irtyšem","Ural","Dyje","Berounka","Sázava","Jizera","Ohře","Tigris","Eufrat"],v:"reka",c:"Příroda",s:"délka toku (zdroje se liší podle měření)",a:1,min:1.1,i:[
  ["Nil",6650],["Amazonka",6400],["Jang-c’-ťiang",6300],["Mississippi s Missouri",6275],["Jenisej",5539],
  ["Žlutá řeka",5464],["Ob s Irtyšem",5410],["Paraná",4880],["Kongo",4700],["Amur",4444],["Lena",4400],
  ["Mekong",4350],["Niger",4180],["Volha",3531],["Indus",3180],["Dunaj",2850],["Eufrat",2800],["Ganga",2525],
@@ -139,7 +142,7 @@ G:[
  ["Visla",1047],["Loira",1006],["Odra",854],["Rhôna",812],["Seina",777],["Pád",652],["Vltava",430],["Tibera",406],
  ["Morava",354],["Temže",346],["Dyje",306],["Ohře",300],["Sázava",225],["Jizera",164],["Berounka",139]]},
 // ---------- hmotnost ----------
-{v:"hmot",c:"Zvířata",s:"typický dospělý jedinec (hmotnost se hodně liší)",a:1,min:1.5,i:[
+{f:1,h:["Vorvaň (samec)","Keporkak","Komodský varan","Bizon","Klokan rudý (samec)"],v:"hmot",c:"Zvířata",s:"typický dospělý jedinec (hmotnost se hodně liší)",a:1,min:1.5,i:[
  ["Plejtvák obrovský",150000],["10 slonů afrických",60000],["Vorvaň (samec)",40000],["Keporkak",30000],
  ["Kosatka (samec)",6000],["Slon africký (samec)",6000],["Slon indický (samec)",4000],["Nosorožec bílý",2300],
  ["Hroch",1500],["Žirafa (samec)",1200],["Bizon",900],["Kráva",700],["Kůň",500],["Lední medvěd (samec)",450],
@@ -147,7 +150,7 @@ G:[
  ["Pštros",110],["Panda velká",100],["Klokan rudý (samec)",85],["Komodský varan",80],["Člověk (průměr)",70],
  ["Šimpanz",50],["Vlk",40],["Labrador",32],["Bobr",20],["Liška",6],["Kočka",4.5],["Slepice",2.5],["Ježek",0.8],
  ["Potkan",0.35],["Myš domácí",0.02],["Kolibřík",0.003],["Včela medonosná",0.0001]]},
-{v:"hmot",c:"Technika",s:"hmotnost (přibližně)",a:1,min:1.15,i:[
+{f:2,k:["Eiffelova věž","Socha Svobody","Škoda Octavia","Fotbalový míč","iPhone 15","Mince 1 Kč","Boeing 747 (prázdný)","Tenisový míček"],h:["Car-kolokol (zvon v Kremlu)","Saturn V (při startu)"],v:"hmot",c:"Technika",s:"hmotnost (přibližně)",a:1,min:1.15,i:[
  ["Velká pyramida v Gíze",6000000000],["Titanic (výtlak)",52000000],["Eiffelova věž",10100000],
  ["Saturn V (při startu)",2950000],["Mezinárodní vesmírná stanice",420000],["Airbus A380 (prázdný)",277000],
  ["Socha Svobody",225000],["Car-kolokol (zvon v Kremlu)",200000],["Boeing 747 (prázdný)",180000],
@@ -155,40 +158,40 @@ G:[
  ["iPhone 15",0.171],["Hokejový puk",0.165],["Tenisový míček",0.058],["Golfový míček",0.0459],
  ["Mince 50 Kč",0.0097],["Mince 1 €",0.0075],["Mince 1 Kč",0.0036]]},
 // ---------- rychlost ----------
-{v:"rychlost",c:"Zvířata",s:"nejvyšší rychlost (přibližně)",a:1,min:1.25,i:[
+{f:1,v:"rychlost",c:"Zvířata",s:"nejvyšší rychlost (přibližně)",a:1,min:1.25,i:[
  ["Sokol stěhovavý (střemhlav)",320],["Gepard",110],["Pštros",70],["Usain Bolt (nejvyšší rychlost)",44.7],
  ["Želva obrovská",0.3],["Hlemýžď zahradní",0.05]]},
-{v:"rychlost",c:"Technika",s:"rychlost",min:1.1,i:[
+{f:2,k:["Světlo","Zvuk ve vzduchu","Concorde","Boeing 747 (cestovní)"],h:["Parker Solar Probe (rekord)","Voyager 1","Bugatti Chiron Super Sport","Rekord TGV"],v:"rychlost",c:"Technika",s:"rychlost",min:1.1,i:[
  ["Světlo",1079000000],["Parker Solar Probe (rekord)",692000],["Země na oběžné dráze",107000],
  ["Voyager 1",61000],["ISS",27600],["Kulka z AK-47",2600],["Concorde",2180],["Otáčení Země na rovníku",1670],
  ["Zvuk ve vzduchu",1235],["Boeing 747 (cestovní)",910],["Rekord TGV",574.8],["Bugatti Chiron Super Sport",490],
  ["Šinkansen (provoz)",320]]},
-{v:"vek",c:"Zvířata",s:"nejvyšší doložený věk",a:1,min:1.15,i:[
+{f:2,v:"vek",c:"Zvířata",s:"nejvyšší doložený věk",a:1,min:1.15,i:[
  ["Velryba grónská",211],["Člověk (Jeanne Calmentová)",122],["Slon (Lin Wang)",86],["Kakadu (Cookie)",83],
  ["Kůň (Old Billy)",62],["Kočka (Creme Puff)",38],["Pes (Bluey)",29]]},
-{v:"kcal",c:"Jídlo",s:"energie na 100 g (podle receptury se liší)",a:1,min:1.25,i:[
+{f:1,h:["Ementál","Kešu","Hovězí mleté"],v:"kcal",c:"Jídlo",s:"energie na 100 g (podle receptury se liší)",a:1,min:1.25,i:[
  ["Olivový olej",884],["Máslo",730],["Vlašské ořechy",654],["Hořká čokoláda 70 %",600],["Arašídy",567],
  ["Kešu",553],["Bramborové lupínky",536],["Mléčná čokoláda",535],["Cukr",400],["Ementál",380],["Hranolky",312],
  ["Med",304],["Rohlík",290],["Hovězí mleté",254],["Chléb",250],["Losos",208],["Avokádo",160],["Těstoviny (vařené)",158],
  ["Vejce (vařené)",155],["Rýže (vařená)",130],["Kuřecí prsa",120],["Banán",89],["Brambory (vařené)",87],
  ["Mléko plnotučné",64],["Jablko",52],["Coca-Cola",42],["Mrkev",41],["Rajče",18],["Okurka",15]]},
 // ---------- vesmír ----------
-{v:"sirka",c:"Vesmír",s:"průměr tělesa (u Austrálie šířka západ–východ)",min:1.05,i:[
+{f:2,k:["Slunce","Jupiter","Země","Měsíc","Mars"],h:["Kallisto","Io","Europa","Triton","Ceres","Ganymed","Titan"],v:"sirka",c:"Vesmír",s:"průměr tělesa (u Austrálie šířka západ–východ)",min:1.05,i:[
  ["Slunce",1392700],["Jupiter",139820],["Saturn",116460],["Uran",50724],["Neptun",49244],["Země",12742],
  ["Venuše",12104],["Mars",6779],["Ganymed",5268],["Titan",5150],["Merkur",4879],["Kallisto",4821],
  ["Austrálie (západ–východ)",4000],["Io",3643],["Měsíc",3475],["Europa",3122],["Triton",2707],["Pluto",2377],
  ["Ceres",939]]},
-{v:"slunce",c:"Vesmír",s:"průměrná vzdálenost od Slunce",min:1.05,i:[
+{f:2,k:["Země","Merkur","Mars","Jupiter"],h:["Ceres"],v:"slunce",c:"Vesmír",s:"průměrná vzdálenost od Slunce",min:1.05,i:[
  ["Merkur",57.9],["Venuše",108.2],["Země",149.6],["Mars",227.9],["Ceres",414],["Jupiter",778.5],["Saturn",1432],
  ["Uran",2867],["Neptun",4515],["Pluto",5906]]},
-{v:"obeh",c:"Vesmír",s:"doba jednoho oběhu kolem Slunce",min:1.05,i:[
+{f:2,k:["Země","Mars"],h:["Ceres","Halleyova kometa"],v:"obeh",c:"Vesmír",s:"doba jednoho oběhu kolem Slunce",min:1.05,i:[
  ["Merkur",88],["Venuše",225],["Země",365],["Mars",687],["Ceres",1682],["Jupiter",4333],["Saturn",10759],
  ["Halleyova kometa",27500],["Uran",30687],["Neptun",60190],["Pluto",90560]]},
-{v:"hvezdy",c:"Vesmír",s:"vzdálenost od Země (u vzdálených hvězd odhad)",a:1,min:1.3,i:[
+{f:3,k:["Proxima Centauri","Polárka","Galaxie v Andromedě"],v:"hvezdy",c:"Vesmír",s:"vzdálenost od Země (u vzdálených hvězd odhad)",a:1,min:1.3,i:[
  ["Proxima Centauri",4.24],["Sirius",8.6],["Vega",25],["Arktur",36.7],["Aldebaran",65],["Polárka",430],
  ["Rigel",860],["Střed Mléčné dráhy",26000],["Velké Magellanovo mračno",160000],["Galaxie v Andromedě",2500000]]},
 // ---------- hloubka ----------
-{v:"hloubka",c:"Příroda",s:"největší hloubka",a:1,min:1.08,i:[
+{f:2,k:["Mariánský příkop","Bajkal","Propast Macocha","Vrak Titanicu","Loch Ness"],h:["Portorický příkop","Důl Mponeng","Jeskyně Veryovkina","Ponor zobákovce Cuvierova (rekord)","Kráterové jezero (Oregon)","Jezero Tahoe","Plešné jezero","Čertovo jezero"],v:"hloubka",c:"Příroda",s:"největší hloubka",a:1,min:1.08,i:[
  ["Vrt Kola (nejhlubší vrt)",12262],["Mariánský příkop",10935],["Portorický příkop",8376],["Důl Mponeng",4000],
  ["Vrak Titanicu",3800],["Ponor zobákovce Cuvierova (rekord)",2992],["Jeskyně Veryovkina",2212],["Bajkal",1642],
  ["Tanganika",1470],["Kaspické moře",1025],["Kráterové jezero (Oregon)",594],["Jezero Tahoe",501],
@@ -196,7 +199,7 @@ G:[
  ["Loch Ness",227],["Volné potápění bez omezení (rekord)",214],["Propast Macocha",138.7],
  ["Černé jezero (Šumava)",40],["Čertovo jezero",36],["Plešné jezero",18]]},
 // ---------- zvířata ----------
-{v:"divoci",c:"Zvířata",s:"odhad počtu ve volné přírodě",a:1,min:1.4,i:[
+{f:2,h:["Orangutan bornejský","Sviňucha kalifornská","Nosorožec černý"],v:"divoci",c:"Zvířata",s:"odhad počtu ve volné přírodě",a:1,min:1.4,i:[
  ["Slon africký",415000,"odhad IUCN, 2016"],["Šimpanz",250000,"odhad IUCN: 170–300 tisíc"],
  ["Žirafa",117000,"odhad GCF, 2020"],["Orangutan bornejský",104700,"odhad IUCN, 2016"],
  ["Lední medvěd",26000,"odhad IUCN/PBSG: 22–31 tisíc"],["Lev",23000,"odhad IUCN: 20–25 tisíc"],
@@ -204,46 +207,46 @@ G:[
  ["Nosorožec černý",6400,"odhad IUCN, 2024"],["Tygr",5600,"odhad GTF, 2023"],
  ["Panda velká",1864,"sčítání v Číně, 2014"],["Gorila horská",1063,"sčítání, 2018"],
  ["Sviňucha kalifornská",8,"odhad 2024: 6–8 kusů"]]},
-{v:"sloni",c:"Zvířata",s:"odhad počtu divokých slonů",a:1,min:1.4,i:[
+{f:3,v:"sloni",c:"Zvířata",s:"odhad počtu divokých slonů",a:1,min:1.4,i:[
  ["Botswana",130000,"letecké sčítání KAZA, 2022"],["Zimbabwe",100000,"letecké sčítání KAZA, 2022"],
  ["Tanzanie",60000,"odhad TAWIRI"],["Keňa",36000,"sčítání KWS, 2021"],["Indie",22000,"sčítání podle DNA, 2025"],
  ["Srí Lanka",6500,"odhad"],["Thajsko",3500,"odhad"]]},
 // ---------- sport ----------
-{v:"nhl",c:"Sport",s:"góly v základní části NHL",min:1.05,i:[
+{f:3,k:["Wayne Gretzky","Jaromír Jágr","Mario Lemieux"],v:"nhl",c:"Sport",s:"góly v základní části NHL",min:1.05,i:[
  ["Wayne Gretzky",894],["Gordie Howe",801],["Jaromír Jágr",766],["Brett Hull",741],["Marcel Dionne",731],
  ["Phil Esposito",717],["Mike Gartner",708],["Mark Messier",694],["Steve Yzerman",692],["Mario Lemieux",690],
  ["Teemu Selänne",684],["Luc Robitaille",668],["Brendan Shanahan",656],["Dave Andreychuk",640],["Joe Sakic",625],
  ["Bobby Hull",610],["Jari Kurri",601],["Mike Bossy",573],["Peter Šťastný",450],["Patrik Eliáš",408],
  ["Milan Hejduk",375]]},
-{v:"gs",c:"Sport",s:"grandslamové tituly ve dvouhře",min:1.05,i:[
+{f:2,k:["Roger Federer","Rafael Nadal","Serena Williamsová","Martina Navrátilová"],v:"gs",c:"Sport",s:"grandslamové tituly ve dvouhře",min:1.05,i:[
  ["Margaret Courtová",24],["Serena Williamsová",23],["Steffi Grafová",22],["Rafael Nadal",22],["Roger Federer",20],
  ["Martina Navrátilová",18],["Chris Evertová",18],["Pete Sampras",14],["Björn Borg",11],["Rod Laver",11],
  ["Monika Selešová",9],["Andre Agassi",8],["Ivan Lendl",8],["Jimmy Connors",8],["John McEnroe",7],
  ["Venus Williamsová",7],["Justine Heninová",7],["Hana Mandlíková",4],["Petra Kvitová",2]]},
 // ---------- peníze ----------
-{v:"trzby",c:"Peníze",s:"celosvětové tržby v kinech (Box Office Mojo)",a:1,min:1.1,i:[
+{f:2,k:["Avatar","Titanic"],v:"trzby",c:"Peníze",s:"celosvětové tržby v kinech (Box Office Mojo)",a:1,min:1.1,i:[
  ["Avatar",2923000000],["Avengers: Endgame",2799000000],["Avatar: The Way of Water",2320000000],
  ["Titanic",2264000000],["Star Wars: Síla se probouzí",2071000000],["Avengers: Infinity War",2052000000],
  ["Spider-Man: Bez domova",1922000000],["V hlavě 2",1699000000],["Jurský svět",1671000000],["Lví král (2019)",1663000000],
  ["Top Gun: Maverick",1496000000],["Ledové království II",1453000000],["Barbie",1446000000],
  ["Super Mario Bros. ve filmu",1362000000],["Harry Potter a Relikvie smrti – část 2",1342000000],
  ["Deadpool & Wolverine",1338000000],["Ledové království",1284000000],["Joker",1079000000],["Oppenheimer",976000000]]},
-{v:"prestup",c:"Sport",s:"přestupní částka bez bonusů",a:1,min:1.15,i:[
+{f:3,k:["Neymar (Barcelona → PSG, 2017)","Cristiano Ronaldo (Manchester United → Real, 2009)"],v:"prestup",c:"Sport",s:"přestupní částka bez bonusů",a:1,min:1.15,i:[
  ["Neymar (Barcelona → PSG, 2017)",222000000],["Kylian Mbappé (Monako → PSG, 2018)",180000000],
  ["João Félix (Benfica → Atlético, 2019)",126000000],["Enzo Fernández (Benfica → Chelsea, 2023)",121000000],
  ["Paul Pogba (Juventus → Manchester United, 2016)",105000000],["Gareth Bale (Tottenham → Real, 2013)",101000000],
  ["Cristiano Ronaldo (Manchester United → Real, 2009)",94000000],["Zinedine Zidane (Juventus → Real, 2001)",77500000],
  ["Luís Figo (Barcelona → Real, 2000)",60000000]]},
 // ---------- jídlo ----------
-{v:"voda",c:"Jídlo",s:"průměrná vodní stopa (Water Footprint Network)",a:1,min:1.3,i:[
+{f:3,v:"voda",c:"Jídlo",s:"průměrná vodní stopa (Water Footprint Network)",a:1,min:1.3,i:[
  ["Pražená káva",18900],["Čokoláda",17196],["Hovězí maso",15415],["Skopové maso",10412],["Vepřové maso",5988],
  ["Kuřecí maso",4325],["Vejce",3265],["Sýr",3178],["Rýže",2497],["Cukr",1782],["Chléb",1608],["Mléko",1020],
  ["Jablka",822],["Banány",790],["Brambory",287],["Rajčata",214]]},
-{v:"kofein",c:"Jídlo",s:"obsah kofeinu v běžné porci (přibližně)",a:1,min:1.4,i:[
+{f:2,v:"kofein",c:"Jídlo",s:"obsah kofeinu v běžné porci (přibližně)",a:1,min:1.4,i:[
  ["Monster Energy (500 ml)",160],["Filtrovaná káva (250 ml)",120],["Red Bull (250 ml)",80],["Espresso (30 ml)",63],
  ["Černý čaj (250 ml)",50],["Coca-Cola (330 ml)",33],["Bezkofeinová káva (250 ml)",5]]},
 // ---------- stáří (hodnota = rok vzniku; hra počítá, kolik let to je) ----------
-{v:"stari",c:"Historie",s:"rok vzniku nebo dokončení",y:1,min:1.08,i:[
+{f:2,k:["Velká pyramida v Gíze","Koloseum","Pražský hrad","Karlův most","Eiffelova věž","Česká republika","Google","Facebook","iPhone","YouTube","Wikipedie","Československo"],h:["Plzeňský Prazdroj","Laurin & Klement","Zoo Praha","Parthenón","Brooklynský most","Tádž Mahal"],v:"stari",c:"Historie",s:"rok vzniku nebo dokončení",y:1,min:1.08,i:[
  ["Stonehenge",-3000,"první fáze kolem roku 3000 př. n. l."],["Velká pyramida v Gíze",-2560,"kolem roku 2560 př. n. l."],
  ["Parthenón",-432],["Koloseum",80],["Pražský hrad",880,"založen kolem roku 880"],["Notre-Dame v Paříži",1163,"začátek stavby"],
  ["Univerzita Karlova",1348],["Karlův most",1357,"začátek stavby"],["Pražský orloj",1410],["Tádž Mahal",1653],
@@ -255,15 +258,15 @@ G:[
  ["Google",1998],["Wikipedie",2001],["Eurobankovky",2002],["Facebook",2004],["YouTube",2005],["iPhone",2007],
  ["Bitcoin",2009],["Burdž Chalífa",2010],["Instagram",2010],["ChatGPT",2022]]},
 // ---------- délka ----------
-{v:"delka",c:"Rekordy",s:"délka",min:1.1,i:[
+{f:2,k:["Karlův most","Titanic","Fotbalové hřiště","Olympijský bazén","Tenisový kurt"],h:["Gotthardský úpatní tunel","Viadukt Millau","Letadlová loď USS Gerald R. Ford","Icon of the Seas"],v:"delka",c:"Rekordy",s:"délka",min:1.1,i:[
  ["Velká čínská zeď (dynastie Ming)",8850000],["Gotthardský úpatní tunel",57100],["Eurotunel",50450],
  ["Golden Gate (celý most)",2737],["Viadukt Millau",2460],["Karlův most",516],["Icon of the Seas",365],
  ["Letadlová loď USS Gerald R. Ford",337],["Titanic",269],["Fotbalové hřiště",105],["Boeing 747-8",76.3],
  ["Kluziště NHL",61],["Olympijský bazén",50],["Basketbalové hřiště",28],["Tenisový kurt",23.77]]},
-{v:"delka",c:"Zvířata",s:"délka dospělého jedince (přibližně)",a:1,min:1.3,i:[
+{f:1,v:"delka",c:"Zvířata",s:"délka dospělého jedince (přibližně)",a:1,min:1.3,i:[
  ["Plejtvák obrovský (délka)",25],["Tyrannosaurus rex",12],["Krajta mřížkovaná",6]]},
 // ---------- počty („Čeho je víc?“) ----------
-{v:"pocet",c:"Kvíz",s:"",min:1.05,i:[
+{f:1,h:["Haydnových symfonií","Chromozomů psa","Členů Sněmovny reprezentantů USA","Časových pásem Ruska","Pater Burdž Chalífa","Dílů seriálu Přátelé","Oscarů za film Titanic","Senátorů USA"],v:"pocet",c:"Kvíz",s:"",min:1.05,i:[
  ["Kostí v těle dospělého člověka",206],["Kláves na klavíru",88],["Karet v balíčku žolíkových karet bez žolíků",52],
  ["Políček na šachovnici",64],["Států USA",50],["Krajů České republiky",14],["Států Evropské unie",27],
  ["Členských států OSN",193],["Chemických prvků",118],["Dní v roce",365],["Hodin v týdnu",168],["Minut ve dni",1440],
@@ -276,4 +279,197 @@ G:[
  ["Beethovenových symfonií",9],["Haydnových symfonií",104],["Písmen anglické abecedy",26],["Států Afriky",54],
  ["Časových pásem Ruska",11],["Žeber člověka",24],["Let ve století",100],["Týdnů v roce",52],
  ["Oscarů za film Titanic",11],["Dílů seriálu Přátelé",236],["Pater Burdž Chalífa",163]]}
-]};
+],
+// ---------- překvapivá srovnání: [otázka, jednotka, [A, hodnota], [B, hodnota], zajímavost, {a:1 přibližné, y:1 hodnoty jsou roky vzniku}?]
+X:[
+// lidé a místa
+["Kde žije víc lidí?","obyvatel",["Aglomerace Tokia",37000000],["Kanada",41000000],"Celá druhá největší země světa má jen o málo víc obyvatel než jedna japonská aglomerace.",{a:1}],
+["Kde žije víc lidí?","obyvatel",["Texas",31000000],["Austrálie",27000000],"Texas má víc obyvatel než celý australský kontinent.",{a:1}],
+["Kde žije víc lidí?","obyvatel",["Bavorsko",13400000],["Česko",10900000],"Jediná německá spolková země má o 2,5 milionu obyvatel víc než celé Česko.",{a:1}],
+["Kde žije víc lidí?","obyvatel",["Berlín",3780000],["Mongolsko",3480000],"Mongolsko je 18× větší než Česko, ale má méně obyvatel než Berlín.",{a:1}],
+["Kde žije víc lidí?","obyvatel",["Kladno",69000],["Grónsko",56000],"Největší ostrov světa má méně obyvatel než Kladno.",{a:1}],
+["Kde žije víc lidí?","obyvatel",["Lichtenštejnsko",40000],["Třebíč",34000],"Celý stát Lichtenštejnsko je jen o trochu lidnatější než Třebíč.",{a:1}],
+["Kde žije víc lidí?","obyvatel",["Monako",38000],["Tábor",34000],"Monako má na rozloze 2 km² skoro stejně lidí jako Tábor.",{a:1}],
+["Kde žije víc lidí?","obyvatel",["Bangladéš",172000000],["Rusko",145000000],"Bangladéš je asi 115× menší než Rusko, a přesto lidnatější.",{a:1}],
+["Kde žije víc lidí?","obyvatel",["Nigérie",230000000],["Rusko",145000000],"Nigérie má o víc než 80 milionů obyvatel víc než Rusko.",{a:1}],
+["Kde žije víc lidí?","obyvatel",["Írán",91000000],["Německo",84000000],"Írán je lidnatější než nejlidnatější země EU.",{a:1}],
+["Kde žije víc lidí?","obyvatel",["Kanada",41000000],["Polsko",37500000],"Kanada je 32× větší než Polsko, ale obyvatel má jen o desetinu víc.",{a:1}],
+["Kde žije víc lidí?","obyvatel",["Tchaj-wan",23400000],["Austrálie",27000000],"Tchaj-wan je asi 200× menší než Austrálie, ale lidí má jen o pár milionů méně.",{a:1}],
+["Kde žije víc lidí?","obyvatel",["Island",390000],["Ostrava",283000],"Celý Island má jen asi o třetinu víc obyvatel než Ostrava.",{a:1}],
+["Kde žije víc lidí?","obyvatel",["Mnichov",1510000],["Praha",1384000],"Mnichov je větší než Praha, i když se o něm tak nemluví.",{a:1}],
+["Kde žije víc lidí?","obyvatel",["Vídeň",2000000],["Praha",1384000],"Vídeň měla kolem roku 1910 přes 2 miliony obyvatel – víc než dnes Praha.",{a:1}],
+["Kde žije víc lidí?","obyvatel",["Lotyšsko",1870000],["Praha",1384000],"Celé Lotyšsko je jen o třetinu lidnatější než Praha.",{a:1}],
+["Kde žije víc lidí?","obyvatel",["Brno",402000],["Bratislava",475000],"Hlavní město Slovenska je lidnatější než Brno, ale jen asi o 70 tisíc.",{a:1}],
+["Kde žije víc lidí?","obyvatel",["Nigérie",230000000],["Brazílie",212000000],"Nigérie předběhla Brazílii a je šestou nejlidnatější zemí světa.",{a:1}],
+["Kde žije víc lidí?","obyvatel",["Pákistán",245000000],["Brazílie",212000000],"Pákistán má víc obyvatel než Brazílie, největší země Jižní Ameriky.",{a:1}],
+["Kde žije víc lidí?","obyvatel",["Vietnam",100000000],["Německo",84000000],"Vietnam je lidnatější než Německo.",{a:1}],
+["Kde žije víc lidí?","obyvatel",["Aglomerace Káhiry",22000000],["Nizozemsko",18000000],"V aglomeraci Káhiry žije víc lidí než v celém Nizozemsku.",{a:1}],
+["Kde žije víc lidí?","obyvatel",["Šanghaj",24900000],["Austrálie",27000000],"Jediné čínské město má skoro tolik obyvatel jako celá Austrálie.",{a:1}],
+["Čeho je víc?","",["Ovcí na Novém Zélandu",23000000],["Lidí na Novém Zélandu",5300000],"Na Novém Zélandu připadají asi čtyři ovce na jednoho člověka.",{a:1}],
+["Čeho je víc?","",["Kuřat na Zemi",26000000000],["Lidí na Zemi",8200000000],"Na každého člověka připadají asi tři kuřata (FAO).",{a:1}],
+["Čeho je víc?","",["Lidí, kteří kdy žili",117000000000],["Lidí, kteří žijí dnes",8200000000],"Dnes žije asi 7 % všech lidí, kteří se kdy narodili (odhad PRB).",{a:1}],
+["Čeho je víc?","",["Stromů na Zemi",3000000000000],["Hvězd v Mléčné dráze",400000000000],"Stromů je asi 3 biliony (Crowther 2015), hvězd v Galaxii 100–400 miliard.",{a:1}],
+["Čeho je víc?","",["Ostrovů ve Švédsku",267570],["Ostrovů na Filipínách",7641],"Švédsko má podle statistického úřadu 267 570 ostrovů, nejvíc na světě.",{}],
+["Čeho je víc?","",["Časových pásem Francie",12],["Časových pásem Ruska",11],"Díky zámořským územím má Francie nejvíc časových pásem na světě.",{}],
+["Čeho je víc?","",["Pyramid v Súdánu",220],["Pyramid v Egyptě",120],"V Súdánu stojí asi 200–255 núbijských pyramid, skoro dvakrát víc než v Egyptě.",{a:1}],
+["Čeho je víc?","",["Bakterií v lidském těle",38000000000000],["Lidských buněk v těle",30000000000000],"Bakterií je v těle zhruba stejně jako buněk, ne desetkrát víc (Sender a kol., 2016).",{a:1}],
+["Čeho je víc?","",["Kombinací Rubikovy kostky",43000000000000000000],["Zrnek písku na všech plážích Země",7500000000000000000],"Rubikova kostka má asi 43 trilionů pozic – víc než se odhaduje zrnek písku na plážích.",{a:1}],
+// rozloha
+["Co má větší rozlohu?","km²",["Aljaška",1717856],["Mongolsko",1564110],"Aljaška je největší stát USA – víc než dvojnásobek Texasu.",{}],
+["Co má větší rozlohu?","km²",["Grónsko",2166086],["Mexiko",1964375],"Grónsko je opravdu obří, ale ne tak jako na mapě.",{}],
+["Co má větší rozlohu?","km²",["Afrika",30370000],["Grónsko",2166086],"Na běžné mapě vypadá Grónsko velké jako Afrika, ve skutečnosti je asi 14× menší.",{a:1}],
+["Co má větší rozlohu?","km²",["Texas",695662],["Francie (evropská část)",551695],"Texas je větší než kterýkoli stát Evropské unie.",{}],
+["Co má větší rozlohu?","km²",["Kaspické moře",371000],["Finsko",338455],"Kaspické moře je větší než celé Finsko.",{a:1}],
+["Co má větší rozlohu?","km²",["Hořejší jezero",82100],["Irsko",70273],"Největší sladkovodní jezero podle plochy je větší než Irsko.",{a:1}],
+["Co má větší rozlohu?","km²",["Asie",44579000],["Povrch Měsíce",37900000],"Celý povrch Měsíce je menší než Asie.",{a:1}],
+["Co má větší rozlohu?","km²",["Japonsko",377975],["Německo",357588],"Japonsko vypadá na mapě malé, ale je větší než Německo.",{}],
+["Co má větší rozlohu?","km²",["Rakousko",83879],["Česko",78871],"Rakousko je o něco větší než Česko.",{}],
+["Co má větší rozlohu?","km²",["Kuba",109884],["Česko",78871],"Kuba je asi o 40 % větší než Česko.",{}],
+["Co má větší rozlohu?","km²",["Island",103000],["Česko",78871],"Island je o třetinu větší než Česko, ale žije na něm jen 390 tisíc lidí.",{}],
+["Co má větší rozlohu?","km²",["Central Park",3.41],["Vatikán",0.49],"Central Park v New Yorku je asi 7× větší než celý Vatikán.",{}],
+["Co má větší rozlohu?","km²",["Central Park",3.41],["Monako",2.02],"Do Central Parku by se Monako vešlo víc než jednou a půl.",{}],
+["Co má větší rozlohu?","km²",["Singapur",735],["Praha",496],"Celý stát Singapur je jen o polovinu větší než Praha.",{}],
+["Co má větší rozlohu?","km²",["Brno",230],["Manhattan",59.1],"Brno je skoro 4× větší než Manhattan.",{}],
+["Co má větší rozlohu?","km²",["Praha",496],["Lichtenštejnsko",160],"Praha je přes 3× větší než celé Lichtenštejnsko.",{}],
+["Co má větší rozlohu?","km²",["Jižní Korea",100210],["Česko",78871],"Jižní Korea je o čtvrtinu větší než Česko a má 5× víc obyvatel.",{}],
+["Co má větší rozlohu?","km²",["Alžírsko",2381741],["Grónsko",2166086],"Alžírsko je největší stát Afriky – větší než Grónsko.",{}],
+["Co má větší rozlohu?","km²",["DR Kongo",2344858],["Grónsko",2166086],"DR Kongo je větší než Grónsko, i když na mapě vypadá menší.",{}],
+["Co má větší rozlohu?","km²",["Honšú",227960],["Velká Británie (ostrov)",209331],"Hlavní japonský ostrov Honšú je větší než ostrov Velká Británie.",{}],
+["Co má větší rozlohu?","km²",["Madagaskar",587041],["Francie (evropská část)",551695],"Madagaskar je větší než evropská Francie.",{}],
+["Co má větší rozlohu?","km²",["Kuba",109884],["Island",103000],"Kuba je o něco větší než Island.",{}],
+["Co má větší rozlohu?","km²",["Turecko",783562],["Texas",695662],"Turecko je větší než Texas, druhý největší stát USA.",{}],
+["Co má větší rozlohu?","km²",["Evropa",10180000],["Austrálie",7692024],"Austrálie je obří, ale celá Evropa je ještě o třetinu větší.",{a:1}],
+// stáří
+["Co je starší?","let",["Oxfordská univerzita",1096],["Říše Aztéků",1325],"V Oxfordu se učilo už 230 let před založením aztéckého Tenochtitlánu.",{y:1,a:1}],
+["Co je starší?","let",["Velká pyramida v Gíze",-2560],["Kleopatra",-69],"Kleopatra žila blíž době přistání na Měsíci než stavbě Velké pyramidy.",{y:1,a:1}],
+["Co je starší?","let",["Velká pyramida v Gíze",-2560],["Vyhynutí posledních mamutů",-2000],"Když Egypťané stavěli Velkou pyramidu, na Wrangelově ostrově ještě žili mamuti.",{y:1,a:1}],
+["Co je starší?","let",["Nintendo",1889],["Titanic",1912],"Nintendo začínalo v roce 1889 jako výrobce hracích karet.",{y:1}],
+["Co je starší?","let",["Harvardova univerzita",1636],["USA",1776],"Harvard je o 140 let starší než Spojené státy.",{y:1}],
+["Co je starší?","let",["Oxfordská univerzita",1096],["Machu Picchu",1450],"Machu Picchu Inkové postavili asi o 350 let později, než začala výuka v Oxfordu.",{y:1,a:1}],
+["Co je starší?","let",["Univerzita Karlova",1348],["Machu Picchu",1450],"Univerzita Karlova je asi o sto let starší než Machu Picchu.",{y:1,a:1}],
+["Co je starší?","let",["Univerzita Karlova",1348],["Říše Inků",1438],"Inkové začali budovat říši až 90 let po založení pražské univerzity.",{y:1,a:1}],
+["Co je starší?","mil. let",["Žraloci",450],["Stromy",385],"Žraloci jsou na Zemi déle než stromy.",{a:1}],
+["Co je starší?","let",["Fax",1843],["Telefon",1876],"Fax si nechal patentovat Alexander Bain v roce 1843 – o 33 let dřív, než vznikl telefon.",{y:1}],
+["Co je starší?","let",["Pražský orloj",1410],["Kolumbova plavba do Ameriky",1492],"Orloj už odbíjel 82 let, když Kolumbus doplul do Ameriky.",{y:1}],
+["Co je starší?","mil. let",["Stegosaurus",152],["Tyrannosaurus rex",67],"Tyrannosaurus žil časově blíž nám než stegosaurovi.",{a:1}],
+["Co je starší?","let",["Novodobé olympijské hry",1896],["Tour de France",1903],"Tour de France je jen o 7 let mladší než novodobá olympiáda.",{y:1}],
+["Co je starší?","let",["Stonehenge",-3000],["Velká pyramida v Gíze",-2560],"První fáze Stonehenge je asi o 400 let starší než Velká pyramida.",{y:1,a:1}],
+["Co je starší?","let",["Konzerva",1810],["Otvírák na konzervy",1858],"Otvírák na konzervy vynalezli až zhruba 50 let po konzervě – dřív se otvíraly kladivem a dlátem.",{y:1}],
+["Co je starší?","let",["Firma Kongó Gumi",578],["Pražský hrad",880],"Japonská stavební firma Kongó Gumi fungovala samostatně od roku 578 do roku 2006.",{y:1,a:1}],
+["Co je starší?","let",["Narození Jeanne Calmentové",1875],["Eiffelova věž",1889],"Nejstarší doložená žena byla o 14 let starší než Eiffelova věž.",{y:1}],
+["Co je starší?","let",["iPhone",2007],["Bitcoin",2009],"Bitcoin vznikl až dva roky po prvním iPhonu.",{y:1}],
+["Co je starší?","let",["Amazon",1994],["Google",1998],"Amazon začínal v roce 1994 jako internetové knihkupectví.",{y:1}],
+["Co je starší?","let",["Windows",1985],["Česká republika",1993],"První Windows jsou o 8 let starší než Česká republika.",{y:1}],
+["Co je starší?","let",["Wikipedie",2001],["Facebook",2004],"Wikipedie je o tři roky starší než Facebook.",{y:1}],
+["Co je starší?","mil. let",["Dinosauři (doba existence)",165],["Rod Homo (doba existence)",2.8],"Dinosauři vládli Zemi asi 60× déle, než existuje rod Homo.",{a:1}],
+// tělo a zvířata
+["Čeho je víc?","",["Kostí novorozence",300],["Kostí dospělého člověka",206],"Novorozenec má asi 270–300 kostí, část z nich během růstu sroste.",{a:1}],
+["Čeho je víc?","",["Chromozomů psa",78],["Chromozomů člověka",46],"Počet chromozomů neříká nic o složitosti – pes jich má o 32 víc než člověk.",{}],
+["Čeho je víc?","",["Chromozomů koně",64],["Chromozomů člověka",46],"Kůň má 64 chromozomů, člověk 46.",{}],
+["Čeho je víc?","",["Chromozomů kapra",100],["Chromozomů člověka",46],"Kapr obecný má 100 chromozomů.",{}],
+["Čeho je víc?","",["Chromozomů člověka",46],["Chromozomů rýže",24],"Rýže má 24 chromozomů.",{}],
+["Čeho je víc?","",["Kostí kočky",230],["Kostí člověka",206],"Kočka má asi 230–250 kostí – hodně z nich je v ocase.",{a:1}],
+["Čeho je víc?","",["Zubů psa",42],["Zubů člověka",32],"Dospělý pes má 42 zubů, o deset víc než člověk.",{}],
+["Čeho je víc?","",["Zubů člověka",32],["Zubů kočky",30],"Kočka má o dva zuby méně než člověk.",{}],
+["Čeho je víc?","",["Svalů v kočičím uchu",32],["Svalů v lidském uchu",6],"Díky 32 svalům kočka natočí každé ucho zvlášť až o 180°.",{a:1}],
+["Čeho je víc?","",["Kostí v lidské ruce i se zápěstím",27],["Kostí v lebce",22],"Ruka se zápěstím má víc kostí než lebka.",{}],
+["Čeho je víc?","",["Nohou mnohonožky Eumillipes persephone",1306],["Nohou stonožky Gonibregmatus plurimipes",382],"Teprve v roce 2021 našli mnohonožku, která má opravdu víc než tisíc nohou.",{}],
+["Čeho je víc?","",["Oddílů žaludku krávy",4],["Srdcí chobotnice",3],"Kráva má čtyři oddíly žaludku, chobotnice tři srdce.",{}],
+["Čeho je víc?","",["Chuťových pohárků sumce",175000],["Chuťových pohárků člověka",10000],"Sumec má chuťové pohárky po celém těle – je to vlastně plovoucí jazyk.",{a:1}],
+["Co zabije víc lidí ročně?","lidí",["Komáři",700000],["Žraloci",6],"Komáři přenášejí malárii a další nemoci – jsou nejsmrtelnější zvíře světa.",{a:1}],
+["Co zabije víc lidí ročně?","lidí",["Hroši",500],["Žraloci",6],"Hroch zabije v Africe ročně kolem 500 lidí, žralok v průměru méně než deset.",{a:1}],
+["Co váží víc?","mil. t uhlíku",["Všichni lidé",60],["Všichni mravenci",12],"Starý mýtus tvrdil, že mravenci váží jako lidé; studie z roku 2022 ukázala, že asi 5× méně.",{a:1}],
+["Čeho je víc (podle hmotnosti)?","% savců",["Lidé",36],["Všichni divocí savci",4],"Lidé váží asi 9× víc než všichni divocí savci dohromady (Bar-On 2018).",{a:1}],
+["Čeho je víc (podle hmotnosti)?","% savců",["Hospodářská zvířata",60],["Lidé",36],"Krávy, prasata a další hospodářská zvířata tvoří asi 60 % hmotnosti všech savců.",{a:1}],
+["Co váží víc?","kg",["Kůň",500],["Srdce plejtváka obrovského",180],"Srdce plejtváka se přirovnává k autu, ve skutečnosti váží asi 180 kg.",{a:1}],
+["Co váží víc?","t",["Kupovitý mrak",500],["Boeing 747 při vzletu",397],"Běžný kupovitý mrak obsahuje asi 500 tun vody.",{a:1}],
+["Co váží víc?","t",["Eiffelova věž",10100],["Voda v olympijském bazénu",2500],"Olympijský bazén pojme asi 2 500 tun vody, Eiffelova věž váží čtyřikrát tolik.",{a:1}],
+["Co je rychlejší?","km/h",["Usain Bolt",44.7],["Hroch",30],"Hroch na krátkou vzdálenost uběhne asi 30 km/h – víc než běžný člověk.",{a:1}],
+["Co je rychlejší?","km/h",["Medvěd hnědý",56],["Usain Bolt",44.7],"Před medvědem neutečeš – i Usain Bolt je pomalejší.",{a:1}],
+["Co je rychlejší?","km/h",["Hokejová střela Zdeňka Cháry",175.1],["Gepard",110],"Chárova rekordní střela letěla 175,1 km/h.",{a:1}],
+["Kdo spí déle?","hodin denně",["Koala",20],["Kočka",15],"Koala prospí až 22 hodin denně, protože eukalyptus má málo energie.",{a:1}],
+// rychlost a vesmír
+["Co je rychlejší?","km/h",["Země na cestě kolem Slunce",107000],["ISS",27600],"Země letí kolem Slunce asi 4× rychleji než ISS kolem Země.",{}],
+["Co je rychlejší?","m/s",["Zvuk ve vodě",1480],["Zvuk ve vzduchu",343],"Ve vodě se zvuk šíří asi 4× rychleji než ve vzduchu.",{}],
+["Co je rychlejší?","km/h",["ISS",27600],["Kulka z AK-47",2600],"ISS letí desetkrát rychleji než kulka.",{a:1}],
+["Co je rychlejší?","km/h",["Otáčení Země na rovníku",1670],["Zvuk ve vzduchu",1235],"Na rovníku se díky otáčení Země pohybuješ rychleji než zvuk.",{}],
+["Co je teplejší?","°C",["Povrch Venuše",464],["Povrch Merkuru (průměr)",167],"Venuše je dál od Slunce než Merkur, ale díky skleníkovému efektu je mnohem teplejší.",{}],
+["Co je teplejší?","°C",["Blesk",30000],["Povrch Slunce",5500],"Blesk je asi 5× teplejší než povrch Slunce.",{a:1}],
+["Co je teplejší?","°C",["Povrch Venuše",464],["Trouba při pečení pizzy",250],"Na Venuši je teplota, při které se taví olovo.",{a:1}],
+["Co má víc měsíců?","měsíců",["Saturn",274],["Jupiter",97],"Saturn má k roku 2025 přes 270 známých měsíců, nejvíc ze všech planet.",{a:1}],
+["Co trvá déle?","pozemských dní",["Den na Venuši",243],["Rok na Venuši",225],"Venuše se otočí kolem osy pomaleji, než oběhne Slunce.",{}],
+["Co trvá déle?","pozemských dní",["Den na Merkuru (od poledne do poledne)",176],["Rok na Merkuru",88],"Na Merkuru trvá jeden den dva jeho roky.",{}],
+["Co je větší?","km",["Ganymed (měsíc Jupiteru)",5268],["Merkur (planeta)",4879],"Největší měsíc Sluneční soustavy je větší než planeta Merkur.",{}],
+["Co je větší?","km",["Titan (měsíc Saturnu)",5150],["Merkur (planeta)",4879],"I Titan je větší než Merkur.",{}],
+["Co je větší?","km",["Měsíc",3475],["Pluto",2377],"Pluto je menší než náš Měsíc.",{}],
+["Co je širší?","km",["USA (od pobřeží k pobřeží)",4500],["Pluto",2377],"Pluto je užší než Spojené státy.",{a:1}],
+["Co je širší?","km",["Austrálie (západ–východ)",4000],["Měsíc",3475],"Austrálie je širší než Měsíc.",{a:1}],
+["Co je vyšší?","km",["Olympus Mons na Marsu",21.9],["Mount Everest",8.849],"Olympus Mons je skoro 2,5× vyšší než Everest.",{a:1}],
+["Co je delší?","km",["Valles Marineris na Marsu",4000],["Grand Canyon",446],"Kaňon Valles Marineris by se táhl přes celé USA.",{a:1}],
+["Co váží víc?","% hmotnosti Měsíce",["Měsíc",100],["Celý hlavní pás planetek",3],"Všechny planetky hlavního pásu dohromady váží jen asi 3 % Měsíce.",{a:1}],
+["Co trvá déle?","dní",["Dva týdny",14],["Milion sekund",11.6],"Milion sekund je jen 11,6 dne.",{}],
+["Co trvá déle?","let",["Miliarda sekund",31.7],["30 let",30],"Miliarda sekund je skoro 32 let.",{}],
+// výška a délka
+["Co je vyšší?","m",["Mauna Kea (od úpatí na dně oceánu)",10211],["Mount Everest",8849],"Od úpatí na mořském dně je havajská Mauna Kea vyšší než Everest.",{a:1}],
+["Kde je víc metrů?","m",["Hloubka Mariánského příkopu",10935],["Výška Mount Everestu",8849],"Kdyby Everest postavili do Mariánského příkopu, jeho vrchol by byl pořád 2 km pod hladinou.",{a:1}],
+["Kde je víc metrů?","m",["Hloubka vrtu Kola",12262],["Hloubka Mariánského příkopu",10935],"Nejhlubší vrt světa je hlubší než nejhlubší místo oceánu – a široký jen 23 cm.",{a:1}],
+["Co je delší?","km",["Průměr Země",12742],["Velká čínská zeď (dynastie Ming)",8850],"Velká čínská zeď není z Měsíce pouhým okem vidět – je moc úzká.",{a:1}],
+["Co je delší?","km",["Dunaj",2850],["Praha – Lisabon vzdušnou čarou",2244],"Dunaj je delší než vzdálenost z Prahy do Lisabonu.",{a:1}],
+["Co je delší?","km",["Cévy v lidském těle",100000],["Obvod Země",40075],"Všechny cévy jednoho člověka by obtočily Zemi víc než dvakrát.",{a:1}],
+["Co je dál od Prahy?","km",["Londýn",1034],["Řím",921],"Londýn je od Prahy dál než Řím.",{}],
+["Co je dál od Prahy?","km",["Kyjev",1142],["Londýn",1034],"Kyjev je od Prahy dál než Londýn.",{}],
+["Co je dál od Prahy?","km",["Madrid",1773],["Moskva",1668],"Madrid je od Prahy dál než Moskva.",{}],
+["Co je dál od Prahy?","km",["Lisabon",2244],["Moskva",1668],"Lisabon je od Prahy o 600 km dál než Moskva.",{}],
+["Co je dál od Prahy?","km",["Paříž",883],["Varšava",517],"Paříž je od Prahy skoro dvakrát dál než Varšava.",{}],
+["Které město leží severněji?","° s. š.",["Praha",50.1],["Montreal",45.5],"Praha leží severněji než kanadský Montreal.",{}],
+["Které město leží severněji?","° s. š.",["Bratislava",48.1],["Halifax",44.6],"Kanadský Halifax je jižněji než Bratislava.",{}],
+["Co je vyšší?","m",["Velká pyramida v době stavby",146.6],["Katedrála sv. Víta (hlavní věž)",96.5],"Velká pyramida byla nejvyšší stavbou světa skoro 4 000 let.",{}],
+["Co je vyšší?","m",["Socha Svobody (bez podstavce)",46],["Socha Krista Spasitele (bez podstavce)",30],"Socha Krista v Riu vypadá obří, ale sama měří jen 30 m.",{}],
+["Co je vyšší?","m",["Strom Hyperion",116],["Big Ben",96],"Nejvyšší strom světa je vyšší než věž Big Benu.",{a:1}],
+["Co je vyšší?","m",["Vodopád Salto Angel",979],["Burdž Chalífa",828],"Nejvyšší vodopád světa je vyšší než nejvyšší budova.",{}],
+["Co je vyšší?","m",["Petřínská rozhledna",63.5],["Niagarské vodopády (Podkova)",51],"Niagarské vodopády jsou nižší než Petřínská rozhledna.",{}],
+["Co je delší?","m",["Rozpětí křídel Boeingu 747-8",68.4],["První let bratří Wrightů",36.6],"První let bratří Wrightů v roce 1903 byl kratší než křídla Boeingu 747.",{}],
+["Co je vyšší?","m n. m.",["Sněžka",1603],["Ben Nevis",1345],"Nejvyšší hora Británie je nižší než Sněžka.",{}],
+["Co je vyšší?","m n. m.",["Sněžka",1603],["Vesuv",1281],"Slavná sopka Vesuv je nižší než Sněžka.",{}],
+["Co je vyšší?","m n. m.",["Rysy",2501],["Sněžka",1603],"Nejvyšší hora Polska je o 900 metrů vyšší než Sněžka.",{}],
+["Co je vyšší?","m n. m.",["Praděd",1491],["Møllehøj (nejvyšší bod Dánska)",171],"Nejvyšší bod Dánska měří jen 171 m – méně než Žižkovská věž.",{}],
+["Co je vyšší?","m",["Žižkovská věž",216],["Møllehøj (nejvyšší bod Dánska, n. m.)",171],"Žižkovská věž je vyšší než celé Dánsko.",{}],
+["Která řeka je delší?","km",["Vltava",430],["Temže",346],"Vltava je delší než londýnská Temže.",{}],
+["Která řeka je delší?","km",["Vltava",430],["Tibera",406],"Vltava je delší i než římská Tibera.",{}],
+["Která řeka je delší?","km",["Rýn",1233],["Labe",1094],"Labe je kratší než Rýn, ale ne o moc.",{a:1}],
+["Co je delší?","m",["Fotbalové hřiště",105],["Rekordní hod oštěpem Jana Železného",98.48],"Železného rekord by skoro přeletěl celé fotbalové hřiště.",{}],
+["Co je delší?","m",["Rekordní skok do dálky",8.95],["Šířka fotbalové branky",7.32],"Mike Powell by přeskočil celou fotbalovou branku i s tyčemi.",{}],
+// jídlo
+["Co má víc vitamínu C?","mg na 100 g",["Červená paprika",128],["Pomeranč",53],"Červená paprika má víc než dvojnásobek vitamínu C pomeranče (USDA).",{}],
+["Co má víc vitamínu C?","mg na 100 g",["Kiwi",93],["Pomeranč",53],"Kiwi má asi o tři čtvrtiny víc vitamínu C než pomeranč.",{}],
+["Co má víc vitamínu C?","mg na 100 g",["Brokolice",89],["Pomeranč",53],"Syrová brokolice má víc vitamínu C než pomeranč.",{}],
+["Co má víc vitamínu C?","mg na 100 g",["Jahody",59],["Pomeranč",53],"Jahody mají o něco víc vitamínu C než pomeranč.",{}],
+["Co má víc vitamínu C?","mg na 100 g",["Šípky",426],["Pomeranč",53],"Šípky mají asi 8× víc vitamínu C než pomeranč.",{}],
+["Co má víc draslíku?","mg na 100 g",["Avokádo",485],["Banán",358],"Avokádo má víc draslíku než banán, který je za ním proslulý.",{}],
+["Co má víc draslíku?","mg na 100 g",["Brambory",425],["Banán",358],"Syrové brambory mají víc draslíku než banán.",{}],
+["Co má víc kalorií na 100 g?","kcal",["Olivový olej",884],["Máslo",717],"Olivový olej má víc kalorií než máslo – máslo obsahuje asi 16 % vody.",{}],
+["Co má víc kalorií na 100 g?","kcal",["Vlašské ořechy",654],["Mléčná čokoláda",535],"Ořechy mají víc kalorií než čokoláda.",{}],
+["Co má víc kalorií na 100 g?","kcal",["Avokádo",160],["Kuřecí prsa",120],"Avokádo má víc kalorií než kuřecí prsa – kvůli tuku.",{}],
+["Co má víc kalorií na 100 g?","kcal",["Rýže (vařená)",130],["Brambory (vařené)",87],"Vařené brambory mají asi o třetinu méně kalorií než vařená rýže.",{}],
+["Co má víc bílkovin?","g na 100 g",["Čočka (suchá)",24.6],["Vejce",12.6],"Suchá čočka má na 100 g dvakrát víc bílkovin než vejce.",{}],
+["Co má víc bílkovin?","g na 100 g",["Parmazán",35.8],["Kuřecí prsa (syrová)",22.5],"Parmazán má víc bílkovin než kuřecí prsa.",{}],
+["Co má víc železa?","mg na 100 g",["Petržel",6.2],["Špenát",2.7],"Petržel má víc než dvojnásobek železa špenátu.",{}],
+["Co má víc železa?","mg na 100 g",["Hořká čokoláda (70–85 %)",11.9],["Špenát",2.7],"Hořká čokoláda má na 100 g víc železa než špenát (USDA).",{}],
+["Co má víc kofeinu?","mg",["Filtrovaná káva (250 ml)",120],["Espresso (30 ml)",63],"Espresso je silné na chuť, ale hrnek filtrované kávy má kofeinu víc.",{a:1}],
+// materiály
+["Co je těžší (stejný objem)?","g/cm³",["Zlato",19.3],["Olovo",11.3],"Zlato je asi o 70 % těžší než olovo.",{}],
+["Co je těžší (stejný objem)?","g/cm³",["Platina",21.45],["Zlato",19.3],"Platina je ještě těžší než zlato.",{}],
+["Co je těžší (stejný objem)?","g/cm³",["Rtuť",13.5],["Olovo",11.3],"Rtuť je tekutá, a přesto těžší než olovo – olovo na ní plave.",{}],
+["Co je těžší (stejný objem)?","kg/m³",["Voda",1000],["Led",917],"Led je lehčí než voda, a proto plave.",{}],
+["Co je těžší (stejný objem)?","g/cm³",["Titan",4.5],["Hliník",2.7],"Titan je pevný jako ocel, ale skoro o polovinu lehčí.",{}],
+// sport
+["Co je těžší?","g",["Tenisový míček",58],["Golfový míček",45.9],"Tenisák je těžší než golfový míček.",{}],
+["Co je těžší?","g",["Basketbalový míč",620],["Fotbalový míč",430],"Basketbalový míč je asi o 45 % těžší než fotbalový.",{a:1}],
+["Kdo dal v NHL víc gólů?","gólů",["Jaromír Jágr",766],["Mario Lemieux",690],"Jágr dal v NHL víc gólů než jeho slavný spoluhráč Lemieux.",{}],
+["Kdo dal v NHL víc gólů?","gólů",["Jaromír Jágr",766],["Steve Yzerman",692],"Jágr je třetí nejlepší střelec historie NHL.",{}],
+// peníze a technika
+["Co stálo víc?","USD",["Obraz Salvator Mundi",450300000],["Koupě Aljašky (1867)",7200000],"USA koupily Aljašku za 7,2 milionu dolarů – nominálně 60× méně, než stál jeden obraz.",{}],
+["Co stálo víc?","USD",["Film Titanic (1997)",200000000],["Stavba lodi Titanic (1912)",7500000],"Nominálně stál film Titanic 26× víc než skutečná loď.",{a:1}],
+["Čeho je víc?","kB",["Paměť RAM v iPhonu 15",6000000],["Paměť RAM počítače Apollo 11",4],"Počítač, který řídil Apollo 11, měl jen asi 4 kB operační paměti.",{a:1}]
+]
+};

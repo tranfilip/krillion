@@ -65,6 +65,24 @@ else {
       perV.set(g.v, (perV.get(g.v) || 0) + 1);
     }
   });
+  HL.G.forEach((g, gi) => {
+    if (![1, 2, 3].includes(g.f)) errs.push(`HL skupina ${gi} (${g.v}): známost f musí být 1–3`);
+    for (const n of [...(g.k || []), ...(g.h || [])]) if (!g.i.some((x) => x[0] === n)) errs.push(`HL skupina ${gi} (${g.v}): „${n}“ v k/h není mezi položkami`);
+  });
+  // překvapivá srovnání
+  const X = HL.X || [], seenX = new Set(), Y = new Date().getFullYear();
+  X.forEach((row, n) => {
+    const [q, u, A, B, fact, o = {}] = row, at = `překvapení ${n} (${q})`;
+    if (typeof q !== "string" || !q.endsWith("?")) errs.push(`${at}: otázka musí končit otazníkem`);
+    if (typeof u !== "string") errs.push(`${at}: jednotka musí být text`);
+    if (typeof fact !== "string" || fact.length < 15 || !/[.!?]$/.test(fact)) errs.push(`${at}: chybí zajímavost (jedna věta)`);
+    for (const P of [A, B]) if (!Array.isArray(P) || typeof P[0] !== "string" || typeof P[1] !== "number" || !Number.isFinite(P[1])) errs.push(`${at}: špatná položka ${JSON.stringify(P)}`);
+    const va = o.y ? Y - A[1] : A[1], vb = o.y ? Y - B[1] : B[1];
+    if (!(va > 0 && vb > 0)) errs.push(`${at}: hodnoty musí být kladné`);
+    else if (Math.max(va, vb) / Math.min(va, vb) < 1.05) errs.push(`${at}: rozdíl ${A[0]} × ${B[0]} je pod 5 %`);
+    const key = norm(q + A[0] + B[0]); if (seenX.has(key)) errs.push(`${at}: je dvakrát`); seenX.add(key);
+  });
+  if (X.length < 150) errs.push(`HL: jen ${X.length} překvapivých srovnání, cíl je aspoň 150`);
   for (const k of Object.keys(HL.V)) if ((perV.get(k) || 0) < 3) errs.push(`HL veličina ${k}: méně než 3 položky`);
   if (hlN < 400) errs.push(`HL: jen ${hlN} položek, cíl je aspoň 400`);
 }
@@ -91,4 +109,4 @@ else {
 
 const total = P.reduce((s, r) => s + r[2].split(",").length, 0);
 if (errs.length) { console.log(errs.map((e) => "✗ " + e).join("\n")); console.log(`\n${errs.length} chyb`); process.exit(1); }
-console.log(`Data v pořádku: ${P.length} témat, ${total} odpovědí · vyšší/nižší ${hlN} položek · odhad ${E.length} otázek`);
+console.log(`Data v pořádku: ${P.length} témat, ${total} odpovědí · vyšší/nižší ${hlN} položek a ${(HL.X || []).length} překvapení · odhad ${E.length} otázek`);
