@@ -9,8 +9,9 @@ index.html          stránka hry
 styles.css          vzhled (tekuté sklo, HUD, karty)
 src/game.js         logika hry, vykreslování oceánu, potápěč, výběr otázek
 src/shim.js         napojení na Clauda přes /api/ai (mimo claude.ai)
-data/questions.js   všechna témata a odpovědi (178 témat, 12 000+ odpovědí)
+data/questions.js   všechna témata a odpovědi (335 témat, 24 000+ odpovědí)
 api/ai.js           serverová funkce pro Vercel – volá Anthropic API s tvým klíčem
+tests/              testy rozpoznávání odpovědí a kontrola dat (npm test)
 ```
 
 ### Formát otázek (`data/questions.js`)
@@ -23,12 +24,16 @@ api/ai.js           serverová funkce pro Vercel – volá Anthropic API s tvým
 - odpovědi jsou oddělené čárkou a **seřazené od nejčastější po nejvzácnější** – podle pořadí se počítá vzácnost 1–5,
 - `|` odděluje různé názvy jedné odpovědi (první se zobrazuje).
 
-Hra sama snese překlepy, chybějící diakritiku i jiné tvary slova.
+Hra sama snese překlepy, chybějící diakritiku i jiné tvary slova. U víceslovných odpovědí stačí napsat odlišující část („arabská“ → Arabská káva, „lední“ → Lední medvěd), pokud je jednoznačná.
+
+- v odpovědi nesmí být čárka (odděluje odpovědi) – „Marečku, podejte mi pero“ zapiš bez čárky,
+- nová témata: aspoň 25 odpovědí, jasný rozsah zadání („v Česku“, „i bývalého“, „kdekoli na světě“).
 
 ## Spuštění na počítači
 
 ```bash
 npm run dev          # jen hra, bez Clauda (vestavěné seznamy)
+npm test             # testy rozpoznávání odpovědí a kontrola dat
 npm run dev:ai       # hra i s Claudem (potřebuje Vercel CLI a .env.local s klíčem)
 ```
 

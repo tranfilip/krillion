@@ -36,6 +36,23 @@ function weak(n,v){const nt=n.split(" ").filter(t=>t.length>=3);
  else{const vt=v.split(" ").filter(t=>t.length>=3);if(vt.length&&vt.every(x=>nt.some(t=>close(t,x))))return true}
  const nc=n.replace(/ /g,""),vc=v.replace(/ /g,"");if(vc.length>=5&&nc.length>vc.length+1&&nc.endsWith(vc))return true; // automechanik → mechanik
  return false}
+/* neúplná víceslovná odpověď: „arabská“ → Arabská káva, „lední“ → Lední medvěd, „francouzský“ → Francouzský buldoček.
+   Hráč napíše odlišující slova a vynechá zbytek. Platí jen tehdy, když vynechané slovo je v zadání (1),
+   nebo když napsaná slova jsou jasná přídavná jména (-ský, -cký, -ový, -ní, -čí…, aspoň 5 písmen) a nejsou obecná ani křestní jména (2). Shoda musí být jednoznačná (řeší localJudge). */
+const stemEq=(a,b)=>{if(close(a,b))return true;let i=0;while(i<a.length&&i<b.length&&a[i]===b[i])i++;return i>=3&&i>=Math.max(a.length,b.length)-2};
+const ADJ=/(sk[yae]|ck[yae]|ov[yae]|ni|[czsjlb]i)$/;
+const GEN="cern bil cerven zlut zelen modr hned sed ruzov fialov oranzov zlat stribr velk mal obr trpasl severn jizn vychodn zapadn stredn horn doln vnitrn nov star mlad obecn domac divok lesn poln horsk morsk vodn sladk slan kysel ostr cist prav lev dlouh kratk sirok tenk tlust klasick tradicn obycejn normaln spolecn svat spojen kralovsk cisarsk narodn hlavn prvn druh posledn jin dalsi cel jedn takov obri obrovsk mensi vetsi nejvets dobr zl hezk krasn".split(" ");
+const generic=t=>GEN.some(g=>t.startsWith(g)&&t.length<=g.length+3);
+let NAMES=null;const isName=t=>{if(!NAMES){const b=BASE.find(x=>x.q==="Jmenuj české křestní jméno");NAMES=new Set(b?b.list.flatMap(e=>e.keys):[])}return NAMES.has(t)};
+function part(n,v,qt){const nt=n.split(" "),vt=v.split(" ");if(vt.length<2||nt.length>=vt.length||nt.some(t=>t.length<4))return 0;
+ const used=new Set();for(const t of nt){const j=vt.findIndex((x,j)=>!used.has(j)&&close(t,x));if(j<0)return 0;used.add(j)}
+ if(nt.some(isName))return 0; // „Petr“ ≠ Petr Čech
+ const rest=vt.filter((x,j)=>!used.has(j)&&x.length>=3);if(!rest.length)return 0;
+ if(nt.some(t=>qt.some(w=>stemEq(t,w))))return 0; // „káva“ samotná u kávy nestačí
+ if(rest.every(x=>qt.some(w=>stemEq(x,w))))return 1;
+ const lead=[...used].every(j=>j<nt.length),sur=nt.length===1&&used.has(vt.length-1)&&/ova$/.test(nt[0]); // přídavné jméno na začátku, nebo příjmení -ová na konci
+ if((lead||sur)&&nt.every(t=>t.length>=5&&ADJ.test(t)&&!generic(t)))return 2;
+ return 0}
 function tierAt(i,len){const f=i/len;return f<.15?0:f<.35?1:f<.6?2:f<.85?3:4}
 function looseLocal(q,ans){const words=norm(q).split(" ").filter(w=>w.length>=4&&!["jmenuj","jakekoli","jakykoli","jakoukoli","ktereho","kterehokoli","kterykoli","nebo","kdekoli","svete"].includes(w));
  for(const b of BASE){const bq=norm(b.q);if(!words.some(w=>bq.includes(w.slice(0,5))))continue;const r=localJudge(b.q,ans);if(r&&r.valid)return r}return null}
@@ -46,6 +63,9 @@ function localJudge(q,ans){const it=DBQ.get(q);if(!it)return null;const n=norm(a
  for(const test of it.kind!=="base"&&it.kind!=="letter"?[(n,v)=>n===v,strong]:[(n,v)=>n===v,strong,weak])for(let i=0;i<it.list.length;i++){const k=it.list[i].keys.findIndex(v=>test(n,v));if(k<0)continue;
   const name=test===weak&&it.list[i].keys[k].split(" ").length<n.split(" ").length?ans.trim().replace(/^./,c=>c.toUpperCase()):it.list[i].vars[k];
   return{valid:true,name,tier:tierAt(i,it.list.length),top}}
+ if(it.kind!=="min"){const qt=norm(it.fam).split(" ").filter(w=>w.length>=3),hit=[new Map(),new Map()];
+  for(let i=0;i<it.list.length;i++)for(let k=0;k<it.list[i].keys.length;k++){const r=part(n,it.list[i].keys[k],qt);if(r&&!hit[r-1].has(i))hit[r-1].set(i,k)}
+  for(const h of hit)if(h.size){if(h.size>1)break;const[[i,k]]=h;const e=it.list[i],j=e.keys[0].includes(" ")?0:k;return{valid:true,name:e.vars[j],tier:tierAt(i,it.list.length),top}}}
  return{valid:false,reason:"Tohle neplatí",top}}
 const tierFromPct=p=>p>=12?0:p>=4?1:p>=1.2?2:p>=0.3?3:4;
 
