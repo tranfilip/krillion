@@ -55,7 +55,7 @@ body:has(.stage.play) .rail{opacity:0}
 @keyframes rise{from{opacity:0;transform:translateY(18px) scale(.97);filter:blur(8px)}}
 .kb .card{padding:20px 16px 14px}
 .prog{position:absolute;left:30px;right:30px;top:10px;height:4px;border-radius:4px;overflow:hidden;background:rgba(255,255,255,.12)}
-.prog i{display:block;height:100%;width:100%;border-radius:4px;background:linear-gradient(90deg,#aef6ff,#fff);transform-origin:left;box-shadow:0 0 10px rgba(190,250,255,.8)}
+.prog i{display:block;height:100%;width:100%;border-radius:4px;will-change:transform;background:linear-gradient(90deg,#aef6ff,#fff);transform-origin:left;box-shadow:0 0 10px rgba(190,250,255,.8)}
 .prog.low i{background:linear-gradient(90deg,#ff9a8b,#ffd0c8);box-shadow:0 0 10px #ff8a7a}
 .prog.pause i{opacity:.4}
 h1{font-size:clamp(46px,11vw,68px);letter-spacing:-.045em;margin:0;font-weight:800;line-height:.95;background:linear-gradient(180deg,#fff,#c9f4ff);-webkit-background-clip:text;background-clip:text;color:transparent}

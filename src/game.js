@@ -514,7 +514,7 @@ requestAnimationFrame(draw);
 function burst(c,n){if(RM)return;const x=card.offsetLeft+card.offsetWidth/2,y=vTop+card.offsetTop+60;for(let i=0;i<n;i++){const a=Math.random()*Math.PI*2,s=Math.random()*4+1.5;sparks.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s-2,r:Math.random()*2.6+1,l:1,c})}}
 
 /* ---------- hra ---------- */
-let run=null,timer=null,left=25,limit=25,busy=false,lastZone="Sluneční zóna",advT=null;
+let run=null,left=25,limit=25,busy=false,lastZone="Sluneční zóna",advT=null;
 const ARROW='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>';
 const LVN={1:"Lehká",2:"Střední",3:"Těžká",4:"Expert"};
 const FLAME='<svg viewBox="0 0 16 20" aria-hidden="true"><path fill="currentColor" d="M8 0c1 3.2 5.6 5.6 5.6 11A5.6 5.6 0 0 1 2.4 11c0-2.6 1.3-4.3 2.6-5.6.2 1.8 1 3 2.2 3.4C6.4 5.8 7.3 2.6 8 0z"/></svg>';
@@ -526,7 +526,7 @@ function o2(effect){const e=$("o2");if(run&&run.mode==="est"){e.classList.remove
 function toast(s){const e=$("toast");e.textContent=s;e.classList.add("on");clearTimeout(e._t);e._t=setTimeout(()=>e.classList.remove("on"),2600)}
 function setDepth(m,slow){ease=slow?2600:1000;if(m>target){kick=1;const d=$("dm");d.classList.add("bump");setTimeout(()=>d.classList.remove("bump"),350)}target=m;const z=zoneOf(m);if(z!==lastZone&&m>0){lastZone=z;setTimeout(()=>toast(z),1000)}}
 /* úvodní obrazovka: výběr režimu (loď, moře i seskok jsou pro všechny režimy stejné) */
-function home(){run=null;o2();setDepth(0,true);stage.classList.remove("play");card.onclick=null;clearInterval(timer);clearTimeout(advT);advT=null;
+function home(){run=null;o2();setDepth(0,true);stage.classList.remove("play");card.onclick=null;stopT();clearTimeout(advT);advT=null;
  const rec=b=>b?`Rekord <b>${fmt(b)}</b>`:"Bez rekordu",M=[
   ["hl","#8ef0c6","Vyšší, nebo nižší?","Ťukni na to, čeho je víc. Rozdíly se zmenšují, chyba stojí bublinu kyslíku.",ms.hl.best],
   ["est","#63b6ff","Odhad","Deset otázek, odpovíš číslem. Čím přesnější odhad, tím hlouběji.",ms.est.best],
@@ -539,7 +539,7 @@ function nextPrompt(l){gen(l);gen(Math.min(4,l+1));
  const pick=pickTopic(st,run,l);save();return{q:pick.q,ai:false}}
 /* společný seskok z lodi pro všechny režimy. Karta se vytvoří hned při tapnutí a input dostane fokus v rámci
    tapnutí (jinak iOS neotevře klávesnici); do dopadu je karta skrytá třídou .stage.intro. */
-function launch(html,setup,first){lastZone="Sluneční zóna";target=0;o2();card.onclick=null;clearInterval(timer);clearTimeout(advT);advT=null;busy=false;
+function launch(html,setup,first){lastZone="Sluneční zóna";target=0;o2();card.onclick=null;stopT();clearTimeout(advT);advT=null;busy=false;
  // poloha lodi a hladiny se změří ještě s úvodní kartou, pak se karta přepne do herního rozložení
  const done=()=>{document.removeEventListener("pointerdown",skip,true);stage.classList.remove("intro");card.classList.remove("in");void card.offsetWidth;card.classList.add("in");first()};
  if(RM){S.m="dive";S.co=0;S.dv=null;depth=0}else{beginRoll(done);stage.classList.add("intro")}
@@ -564,7 +564,7 @@ function ask(){busy=false;advT=null;run.n++;run.lvl=lvlFor(run.n);const p=nextPr
  if(run.n===4||run.n===8||run.n===13)toast(`Obtížnost: ${LVN[run.lvl]} · ×${MULT[run.lvl]} hloubky`);
  const a=$("a");a.value="";$("f").classList.remove("dim");$("sb").innerHTML=ARROW;$("h").textContent="";$("sk").style.visibility="";
  try{a.focus({preventScroll:true})}catch(e){}
- clearInterval(timer);timer=setInterval(()=>{const b=$("bar");if(!b)return;$("prog").classList.toggle("pause",busy);if(busy)return;left-=.1;b.style.transform=`scaleX(${Math.max(left/limit,0)})`;$("prog").classList.toggle("low",left<6);if(left<=0){clearInterval(timer);$("a").value.trim()?submit():lose("Došel čas",null)}},100)}
+ tick(limit,()=>{$("a").value.trim()?submit():lose("Došel čas",null)})}
 async function submit(){const a=$("a");if(!a||busy)return;const v=a.value.trim();if(!v){a.focus();return}
  busy=true;$("sb").innerHTML='<span class="spin"></span>';
  const q=run.q;let r=run.ai?null:localJudge(q,v);
@@ -572,19 +572,19 @@ async function submit(){const a=$("a");if(!a||busy)return;const v=a.value.trim()
  if(run.ai&&(!r||!r.valid)&&!/\(| v | ve | z | ze | na | od | do |\d/.test(" "+q+" ")){const lr=looseLocal(q,v);if(lr)r=lr}
  if(!r){showRes(`<div class="tier" style="color:#d4e4ff">Bez hodnocení</div><div class="sub">Tohle zadání se nepodařilo ověřit · kyslík ti zůstává</div>`);return}
  if(r.valid)win(r);else lose(r.reason||"Tohle neplatí",r)}
-function showRes(html){clearInterval(timer);busy=true;const pn=$("pn");pn.className="panel res";pn.innerHTML=`<div>${html}</div>`;pn.onclick=advance;
+function showRes(html){stopT();busy=true;const pn=$("pn");pn.className="panel res";pn.innerHTML=`<div>${html}</div>`;pn.onclick=advance;
  $("f").classList.add("dim");$("sb").innerHTML=ARROW;$("sk").style.visibility="hidden";$("h").textContent="";
  clearTimeout(advT);advT=setTimeout(advance,run.o2>0?2300:2700)}
 function win(r){const T=TIERS[r.tier],m=Math.round(T.p*MULT[run.lvl]);run.pts+=m;run.ans.push(r.tier+1);if(!run.best||r.tier>run.best.t||(r.tier===run.best.t&&run.lvl>run.best.l))run.best={t:r.tier,a:r.name,l:run.lvl};
  setDepth(run.pts*10);burst(T.c,12+r.tier*10);
  let extra="";if(r.tier===4&&run.o2<3){run.o2++;o2({i:run.o2-1,c:"gain"});extra=" · <b>+1 kyslík</b>"}
  showRes(`<div class="tier" style="color:${T.c};text-shadow:0 0 34px ${T.c}88">${T.n}</div><div class="sub"><b>${esc(r.name)}</b> · vzácnost ${r.tier+1}/5 · +${fmt(m*10)}${extra}</div><div class="ladder">${TIERS.map((x,i)=>`<i class="${i<=r.tier?"on":""}" style="color:${T.c};--i:${i}"></i>`).join("")}</div>`)}
-function lose(why,r){clearInterval(timer);run.o2--;run.ans.push(0);o2({i:run.o2,c:"pop"});hurt=1;
+function lose(why,r){stopT();run.o2--;run.ans.push(0);o2({i:run.o2,c:"pop"});hurt=1;
  const f=$("flash");f.classList.add("on");setTimeout(()=>f.classList.remove("on"),60);const fe=$("f");fe.classList.remove("shake");void fe.offsetWidth;fe.classList.add("shake");try{navigator.vibrate&&navigator.vibrate(60)}catch(e){}
  const ex=r&&r.top&&r.top.length?r.top:(localJudge(run.q,"")||{}).top;
  showRes(`<div class="tier" style="color:#ffb0a5;text-shadow:0 0 30px #ff7a6a77">−1 kyslík</div><div class="sub">${esc(why)}${ex&&ex.length?` · platilo by třeba <b>${ex.map(esc).join(", ")}</b>`:""}</div>`)}
 function advance(){if(!advT)return;clearTimeout(advT);advT=null;if(run.o2<=0)end();else ask()}
-function end(){clearInterval(timer);const a=$("a");a&&a.blur();stage.classList.remove("play");const m=run.pts*10,rec=m>st.best;if(rec)st.best=m;st.runs++;save();
+function end(){stopT();const a=$("a");a&&a.blur();stage.classList.remove("play");const m=run.pts*10,rec=m>st.best;if(rec)st.best=m;st.runs++;save();
  const z=zoneOf(m),T=run.best?TIERS[run.best.t]:null;
  swap(`<div class="end"><div class="qn">Došel kyslík</div><div class="big">${fmt(m)}</div><div class="zone">${esc(z)}${rec&&m>0?" · nový rekord":""}</div>
  <div class="tcap">Vzácnost odpovědí (1 = běžná, 5 = nejvzácnější, ✕ = chyba)</div><div class="chips">${run.ans.map((v,i)=>`<span style="--i:${i};${v?`color:${TIERS[v-1].c};box-shadow:inset 0 0 0 1px ${TIERS[v-1].c}66`:"color:rgba(255,255,255,.35)"}">${v||"✕"}</span>`).join("")}</div>
@@ -598,8 +598,19 @@ function end(){clearInterval(timer);const a=$("a");a&&a.blur();stage.classList.r
 /* ---------- společné pro nové režimy ---------- */
 let ms=loadModes(localStorage);const saveM=()=>saveModes(localStorage,ms);
 const HL_T=15,EST_N=10,EST_T=30;
-function tick(sec,onEnd){limit=left=sec;clearInterval(timer);const b0=$("bar");if(b0)b0.style.transform="";$("prog")&&$("prog").classList.remove("low");
- timer=setInterval(()=>{const b=$("bar");if(!b)return;$("prog").classList.toggle("pause",busy);if(busy)return;left-=.1;b.style.transform=`scaleX(${Math.max(left/limit,0)})`;$("prog").classList.toggle("low",left<5);if(left<=0){clearInterval(timer);onEnd()}},100)}
+/* časový pruh: zbývající čas z performance.now() (konec = start + limit), kreslí se v requestAnimationFrame přes
+   transform: scaleX. Během vyhodnocování (busy) se čas zastaví a konec se posune o dobu pauzy. Smyčka skončí s otázkou. */
+let tm=null;
+function stopT(){if(tm){cancelAnimationFrame(tm.raf);tm=null}}
+function tick(sec,onEnd){stopT();limit=left=sec;const b0=$("bar"),p0=$("prog");if(b0)b0.style.transform="scaleX(1)";if(p0)p0.classList.remove("low","pause");
+ const t={raf:0,end:performance.now()+sec*1000,pausedAt:0};tm=t;
+ const f=now=>{if(tm!==t)return;const b=$("bar"),p=$("prog");if(!b||!p){stopT();return}
+  if(busy){if(!t.pausedAt)t.pausedAt=now}else if(t.pausedAt){t.end+=now-t.pausedAt;t.pausedAt=0}
+  if(p.classList.contains("pause")!==busy)p.classList.toggle("pause",busy);
+  left=Math.max(0,((t.pausedAt||now)-t.end)/-1000);b.style.transform=`scaleX(${left/limit})`;
+  const low=left<6;if(p.classList.contains("low")!==low)p.classList.toggle("low",low);
+  if(left<=0){stopT();onEnd();return}t.raf=requestAnimationFrame(f)};
+ t.raf=requestAnimationFrame(f)}
 function ouch(){hurt=1;const f=$("flash");f.classList.add("on");setTimeout(()=>f.classList.remove("on"),60);try{navigator.vibrate&&navigator.vibrate(60)}catch(e){}}
 function share(btn,txt){btn.onclick=async()=>{try{await navigator.clipboard.writeText(txt);toast("Zkopírováno")}catch(e){toast("Kopírování nejde")}}}
 function ascendLater(){const r0=run;setTimeout(()=>{if(run===r0&&S.m==="dive")beginAscent()},700)}
@@ -620,7 +631,7 @@ function askHL(){busy=false;advT=null;card.onclick=null;run.n++;const p=pickPair
 // hodnota se „načítá“ od nuly (krátká animace po odpovědi)
 function countUp(el,x){const D=RM?0:750,t0=performance.now(),round=Number.isInteger(x.val)||x.val>=10;
  const f=t=>{const k=D?Math.min(1,Math.max(0,(t-t0)/D)):1,e=1-(1-k)**3,v=k>=1?x.val:round?Math.round(x.val*e):x.val*e;el.textContent=fmtHL(x,v);if(k<1)requestAnimationFrame(f)};requestAnimationFrame(f)}
-function pickHL(i){if(busy||!run||run.mode!=="hl")return;busy=true;clearInterval(timer);
+function pickHL(i){if(busy||!run||run.mode!=="hl")return;busy=true;stopT();
  const{side:[a,b],r}=run.p,w=a.val>b.val?0:1,ok=i===w,W=[a,b][w];
  [a,b].forEach((x,k)=>{const o=$("o"+k);o.disabled=true;o.classList.add(k===w?"ok":k===i?"bad":"dim");countUp($("v"+k),x)});
  const lv=run.p.lvl,mult=HL_MULT[lv];let head;
@@ -639,7 +650,7 @@ function pickHL(i){if(busy||!run||run.mode!=="hl")return;busy=true;clearInterval
 function streakFx(){const f=$("flash");f.classList.add("gold","on");setTimeout(()=>f.classList.remove("on"),90);setTimeout(()=>f.classList.remove("gold"),900);
  burst("#ffd36e",MOBILE?50:80);ease=450;let k=0;const t=setInterval(()=>{kick=1;if(++k>8)clearInterval(t)},150);try{navigator.vibrate&&navigator.vibrate([30,40,30])}catch(e){}}
 function advHL(){if(!advT)return;clearTimeout(advT);advT=null;card.onclick=null;if(run.o2<=0)endHL();else askHL()}
-function endHL(){clearInterval(timer);card.onclick=null;stage.classList.remove("play");const h=ms.hl,m=run.pts,rec=m>h.best;if(rec)h.best=m;h.runs++;saveM();
+function endHL(){stopT();card.onclick=null;stage.classList.remove("play");const h=ms.hl,m=run.pts,rec=m>h.best;if(rec)h.best=m;h.runs++;saveM();
  const z=zoneOf(m),okR=run.res.filter(x=>x.ok).map(x=>x.r),tight=okR.length?Math.min(...okR):0,rs=run.res.slice(-40);
  swap(`<div class="end"><div class="qn">Vyšší, nebo nižší? · došel kyslík</div><div class="big">${fmt(m)}</div><div class="zone">${esc(z)}${rec&&m>0?" · nový rekord":""}</div>
  <div class="tcap">Odpovědi (barva = obtížnost: lehká, střední, těžká, expert; ✕ = chyba)</div><div class="chips">${rs.map((x,i)=>`<span style="--i:${i};${x.ok?`color:${LVC[x.lv]};box-shadow:inset 0 0 0 1px ${LVC[x.lv]}66`:"color:rgba(255,255,255,.35)"}" title="${LVN[x.lv]}">${x.ok?"✓":"✕"}</span>`).join("")}</div>
@@ -678,7 +689,7 @@ function askEst(){busy=false;advT=null;run.n++;run.mul=1;o2();const q=pickEst(ms
  tick(EST_T,()=>submitEst(true))}
 function submitEst(timeout){const a=$("a");if(!a||busy||!run||run.mode!=="est")return;const g=estVal();
  if(!timeout&&!(g>0)){$("h").textContent="Napiš kladné číslo, třeba 1 500, 2,5 tis. nebo 3 mil.";const f=$("f");f.classList.remove("shake");void f.offsetWidth;f.classList.add("shake");try{a.focus({preventScroll:true})}catch(e){}return}
- busy=true;clearInterval(timer);const q=run.q,s=estScore(g,q.v),T=ESTT[s.k];run.pts+=s.m;run.res.push({q,g,s});
+ busy=true;stopT();const q=run.q,s=estScore(g,q.v),T=ESTT[s.k];run.pts+=s.m;run.res.push({q,g,s});
  if(s.m){setDepth(run.pts);burst(T.c,Math.max(4,6+(3-s.k)*12))}else{ouch();const f=$("f");f.classList.remove("shake");void f.offsetWidth;f.classList.add("shake")}
  const pn=$("pn");pn.className="panel res";pn.innerHTML=`<div><div class="tier" style="color:${T.c};text-shadow:0 0 30px ${T.c}77">${T.n}</div>
  <div class="sub">Skutečnost <b>${esc(withU(q.v,q.u))}</b></div>
@@ -687,7 +698,7 @@ function submitEst(timeout){const a=$("a");if(!a||busy||!run||run.mode!=="est")r
  try{a.focus({preventScroll:true})}catch(e){}
  clearTimeout(advT);advT=setTimeout(advEst,5500)}
 function advEst(){if(!advT)return;clearTimeout(advT);advT=null;if(run.n>=EST_N)endEst();else askEst()}
-function endEst(){clearInterval(timer);const a=$("a");a&&a.blur();card.onclick=null;stage.classList.remove("play");const e=ms.est,m=run.pts,rec=m>e.best;if(rec)e.best=m;e.runs++;saveM();
+function endEst(){stopT();const a=$("a");a&&a.blur();card.onclick=null;stage.classList.remove("play");const e=ms.est,m=run.pts,rec=m>e.best;if(rec)e.best=m;e.runs++;saveM();
  const z=zoneOf(m),ex=run.res.filter(x=>x.s.k===0).length,good=run.res.filter(x=>x.s.k<=1).length;
  swap(`<div class="end"><div class="qn">Odhad · ponor dokončen</div><div class="big">${fmt(m)}</div><div class="zone">${esc(z)}${rec&&m>0?" · nový rekord":""}</div>
  <div class="elist">${run.res.map((x,i)=>{const T=ESTT[x.s.k];return`<div class="er" style="--i:${i}"><span class="eq">${i+1}. ${esc(x.q.q)}</span><b class="em" style="color:${T.c}">+${fmt(x.s.m)}</b><span class="ev">tip <b>${x.g>0?esc(fmtNum(x.g)):"—"}</b> · skutečnost <b>${esc(withU(x.q.v,x.q.u))}</b>${x.g>0?" · "+esc(estDiff(x.g,x.q.v)):""}</span></div>`}).join("")}</div>
