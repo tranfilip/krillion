@@ -10,7 +10,7 @@ new Function("window", readFileSync(root + "data/questions.js", "utf8"))(window)
 const src = readFileSync(root + "src/game.js", "utf8");
 const a = src.indexOf("const norm="), b = src.indexOf("const tierFromPct");
 if (a < 0 || b < 0) throw new Error("V src/game.js nejde najít blok rozpoznávání");
-const { localJudge } = new Function("P", src.slice(a, b) + "\nreturn{localJudge,looseLocal};")(window.KRILLION_DATA);
+const { localJudge } = new Function("P", "window", src.slice(a, b) + "\nreturn{localJudge,looseLocal};")(window.KRILLION_DATA, window);
 
 // název odpovědi i se všemi jejími variantami (Arabská káva = Arabská = Káva po arabsku)
 const variants = (q, name) => {
@@ -20,139 +20,120 @@ const variants = (q, name) => {
 };
 
 const Q = {
-  kava: "Jmenuj druh kávy",
-  caj: "Jmenuj druh čaje",
-  zvire: "Jmenuj jakékoli zvíře",
   pes: "Jmenuj psí plemeno",
   stat: "Jmenuj jakýkoli stát světa",
   evropa: "Jmenuj jakýkoli evropský stát",
-  mesto: "Jmenuj jakékoli české město",
-  hokej: "Jmenuj českého hokejistu (i bývalého)",
-  herec: "Jmenuj hollywoodského herce nebo herečku",
+  okres: "Jmenuj okresní město v Česku",
+  kraj: "Jmenuj kraj České republiky",
+  barva: "Jmenuj jakoukoli barvu",
   ovoce: "Jmenuj jakékoli ovoce",
-  napoj: "Jmenuj jakýkoli nápoj",
-  povolani: "Jmenuj jakékoli povolání",
-  zpevak: "Jmenuj zahraničního zpěváka, zpěvačku nebo kapelu",
-  hrad: "Jmenuj hrad, zámek nebo zříceninu v Česku",
+  sport: "Jmenuj jakýkoli sport",
+  tucnak: "Jmenuj druh tučňáka",
+  kost: "Jmenuj kost v lidském těle",
+  zverokruh: "Jmenuj znamení zvěrokruhu",
+  hp: "Jmenuj postavu z Harryho Pottera",
+  usa: "Jmenuj prezidenta USA (i bývalého)",
+  f1: "Jmenuj mistra světa Formule 1",
+  wimb: "Jmenuj vítěze nebo vítězku dvouhry ve Wimbledonu (od roku 1968)",
+  poke: "Jmenuj Pokémona 1. generace",
+  disney: "Jmenuj celovečerní animovaný film studia Walt Disney nebo Pixar",
+  prvek: "Jmenuj jakýkoli chemický prvek",
+  mesic: "Jmenuj měsíc v roce",
+  ryba: "Jmenuj sladkovodní rybu žijící v Česku",
+  papez: "Jmenuj papeže (i bývalého)",
 };
 
 // [zadání, odpověď hráče, očekávaný název (nebo true = jen platí)]
 const MUST = [
-  // nová logika: vynechané slovo ze zadání
-  [Q.kava, "arabská", "Arabská káva"],
-  [Q.kava, "Arabska", "Arabská káva"],
-  [Q.kava, "etiopská", "Etiopská káva"],
-  [Q.kava, "kolumbijska", "Kolumbijská káva"],
-  [Q.kava, "brazilská", "Brazilská káva"],
-  [Q.kava, "keňská", "Keňská káva"],
-  [Q.kava, "vídeňská", "Vídeňská káva"],
-  [Q.kava, "irská", "Irská káva"],
-  [Q.kava, "turecká", "Turecká káva"],
-  [Q.kava, "ledová", "Ledová káva"],
-  [Q.caj, "černý", "Černý čaj"],
-  [Q.caj, "zeleny", "Zelený čaj"],
-  [Q.caj, "bílý", "Bílý čaj"],
-  [Q.caj, "ovocný", "Ovocný čaj"],
-  // nová logika: přídavné jméno bez podstatného jména
-  [Q.zvire, "lední", "Lední medvěd"],
-  [Q.zvire, "ledni", "Lední medvěd"],
+  // neúplná odpověď: vynechané slovo je v zadání
+  [Q.tucnak, "císařský", "Tučňák císařský"],
+  [Q.tucnak, "cisarsky", "Tučňák císařský"],
+  [Q.tucnak, "humboldtův", "Tučňák Humboldtův"],
+  [Q.tucnak, "tučňák císařský", "Tučňák císařský"],
+  [Q.kost, "stehenní", "Stehenní kost"],
+  [Q.kost, "pažní", "Pažní kost"],
+  [Q.kost, "klíční", "Klíční kost"],
+  [Q.kraj, "Jihomoravský kraj", true],
+  [Q.kraj, "jihomoravsky", "Jihomoravský"],
+  [Q.kraj, "kraj vysočina", true],
+  [Q.kraj, "jižní morava", "Jihomoravský"],
+  // neúplná odpověď: jasné přídavné jméno bez podstatného jména
   [Q.pes, "francouzský", "Francouzský buldoček"],
   [Q.pes, "francouzsky", "Francouzský buldoček"],
-  [Q.pes, "francouzská", "Francouzský buldoček"],
   [Q.evropa, "česká", "Česká republika"],
-  [Q.mesto, "karlovy", "Karlovy Vary"],
-  [Q.mesto, "mariánské", "Mariánské Lázně"],
-  // nové druhy kávy
-  [Q.kava, "arabica", "Arabica"],
-  [Q.kava, "arabika", "Arabica"],
-  [Q.kava, "robusta", "Robusta"],
-  [Q.kava, "kopi luwak", "Kopi Luwak"],
-  [Q.kava, "luwak", "Kopi Luwak"],
-  [Q.kava, "arabská káva", "Arabská káva"],
-  // dosavadní chování musí zůstat
-  [Q.kava, "espresso", "Espresso"],
-  [Q.kava, "kapucino", true],
-  [Q.kava, "cappucino", true],
-  [Q.zvire, "medvěd", "Medvěd"],
-  [Q.zvire, "lední medvěd", "Lední medvěd"],
-  [Q.zvire, "tygři", true],
-  [Q.pes, "buldoček", true],
-  [Q.pes, "labrador", true],
-  [Q.hokej, "Jágr", true],
-  [Q.hokej, "jaromir jagr", true],
+  [Q.okres, "karlovy", "Karlovy Vary"],
+  [Q.okres, "uherské", "Uherské Hradiště"],
+  // tvary přídavných jmen a kmeny slov
+  [Q.barva, "šmoulová", "Šmoulí"],
+  [Q.barva, "šmoulí", "Šmoulí"],
+  [Q.barva, "šmoula", "Šmoulí"],
+  [Q.barva, "čokoláda", "Čokoládová"],
+  [Q.barva, "čokoládovou", "Čokoládová"],
+  [Q.barva, "modrý", "Modrá"],
+  [Q.barva, "modrou", "Modrá"],
+  [Q.barva, "zelený", "Zelená"],
+  [Q.barva, "vanilka", "Vanilková"],
+  [Q.barva, "pistácie", "Pistáciová"],
+  [Q.barva, "jahoda", "Jahodová"],
+  [Q.barva, "rudá", "Rudá"],
+  [Q.zverokruh, "blíženec", "Blíženci"],
+  [Q.zverokruh, "štír", "Štír"],
+  // hovorové varianty, zkratky, cizí názvy, bez diakritiky
+  [Q.sport, "kopaná", "Fotbal"],
+  [Q.sport, "hokej", true],
+  [Q.stat, "Česko", true],
+  [Q.stat, "ČR", true],
+  [Q.stat, "USA", true],
+  [Q.okres, "Plzen", "Plzeň"],
+  [Q.okres, "Budějovice", true],
+  [Q.kost, "femur", "Stehenní kost"],
+  [Q.kost, "lebka", "Lebka"],
+  [Q.hp, "Hermiona", true],
+  [Q.hp, "Hermione Granger", true],
+  [Q.hp, "brumbal", true],
+  [Q.usa, "Lincoln", true],
+  [Q.f1, "schumacher", true],
+  [Q.f1, "Senna", true],
+  [Q.wimb, "Kvitová", true],
+  [Q.wimb, "federer", true],
+  [Q.poke, "pikachu", "Pikachu"],
+  [Q.poke, "pikaču", "Pikachu"],
+  [Q.disney, "Frozen", true],
+  [Q.disney, "lví král", "Lví král"],
+  [Q.prvek, "wolfram", true],
+  [Q.prvek, "tungsten", true],
+  [Q.mesic, "leden", "Leden"],
   [Q.ovoce, "jablko", "Jablko"],
   [Q.ovoce, "pomerac", true],
-  [Q.napoj, "káva", "Káva"],
-  [Q.napoj, "minerální", "Minerálka"],
-  [Q.povolani, "automechanik", true],
-  [Q.stat, "Česko", true],
-  // nahlášené chyby: tvary a odvozeniny, chybějící odpovědi
-  ["Jmenuj českého herce nebo herečku", "Štěpán Kozub", "Štěpán Kozub"],
-  ["Jmenuj českého herce nebo herečku", "kozub", "Štěpán Kozub"],
-  ["Jmenuj příchuť zmrzliny", "šmoulová", "Šmoulí"],
-  ["Jmenuj příchuť zmrzliny", "šmoulí", "Šmoulí"],
-  ["Jmenuj příchuť zmrzliny", "šmoula", "Šmoulí"],
-  ["Jmenuj příchuť zmrzliny", "čokoláda", "Čokoládová"],
-  ["Jmenuj příchuť zmrzliny", "čokoládová", "Čokoládová"],
-  ["Jmenuj příchuť zmrzliny", "vanilka", "Vanilková"],
-  ["Jmenuj příchuť zmrzliny", "vanilkova", "Vanilková"],
-  ["Jmenuj příchuť zmrzliny", "pistáciová", "Pistáciová"],
-  ["Jmenuj příchuť zmrzliny", "pistácie", "Pistáciová"],
-  ["Jmenuj příchuť zmrzliny", "jahodovou", "Jahodová"],
-  ["Jmenuj sportovní vybavení nebo pomůcku", "obruč", true],
-  ["Jmenuj sportovní vybavení nebo pomůcku", "obruc", true],
-  ["Jmenuj druh čaje", "mátový", true],
-  ["Jmenuj druh čaje", "máta", true],
-  ["Jmenuj mléčný výrobek", "jogurtová", "Jogurt"],
-  // nová témata
-  ["Jmenuj šelmu (masožravého savce)", "lední", "Lední medvěd"],
-  ["Jmenuj stát, kde se platí eurem", "bulharsko", "Bulharsko"],
-  ["Jmenuj druh salátu (jídla)", "řecký", "Řecký salát"],
-  ["Jmenuj model auta (kterékoli značky)", "octavia", true],
+  [Q.ryba, "kapr", "Kapr"],
+  [Q.papez, "Pius", true],
+  [Q.papez, "Jan Pavel II.", true],
 ];
 
 const MUST_NOT = [
-  [Q.kava, "káva"],          // samotné slovo ze zadání
-  [Q.kava, "kafe dobre"],
-  [Q.kava, "arab"],          // krátké
-  [Q.kava, "voda"],
-  [Q.caj, "čaj"],
-  [Q.zvire, "lední hokej"],
-  [Q.zvire, "hnědý"],        // obecné slovo (barva)
-  [Q.zvire, "velký"],
-  [Q.zvire, "bílý"],
-  [Q.zvire, "domácí"],
-  [Q.zvire, "polo"],
+  [Q.tucnak, "tučňák"],      // samotné slovo ze zadání
+  [Q.kost, "kost"],
+  [Q.kraj, "kraj"],
   [Q.pes, "anglický"],       // nejednoznačné: buldok, kokršpaněl, setr…
   [Q.pes, "český"],          // fousek, teriér
   [Q.pes, "malý"],
-  [Q.pes, "německý"],     // ovčák, doga, ohař…
+  [Q.pes, "německý"],
   [Q.pes, "pes"],
   [Q.stat, "severní"],       // Korea / Makedonie
   [Q.stat, "nový"],
-  [Q.stat, "republika"],    // Česká, Dominikánská, Středoafrická…
-  [Q.mesto, "nové"],
-  [Q.mesto, "ústí"],
-  [Q.mesto, "hradec"],
-  [Q.mesto, "český"],
-  [Q.hokej, "Jaromír"],      // samotné křestní jméno
-  [Q.hokej, "Tomáš"],
-  [Q.herec, "Johnny"],
-  [Q.herec, "Tom"],
-  [Q.zpevak, "Taylor"],
-  [Q.hrad, "hrad"],
+  [Q.stat, "republika"],
+  [Q.okres, "nové"],
+  [Q.okres, "český"],        // Český Krumlov / Česká Lípa
+  [Q.barva, "šmudla"],       // kmeny slov nesmí splývat s jinými slovy
+  [Q.barva, "auto"],
   [Q.ovoce, "černý"],
   [Q.ovoce, "auto"],
-  [Q.napoj, "sycený"],
-  [Q.kava, ""],
-  ["Jmenuj model auta (kterékoli značky)", "ford"],   // značka, ne model
-  ["Jmenuj druh salátu (jídla)", "salát"],
-  // kmeny slov nesmí splývat s jinými slovy
-  ["Jmenuj ptáka", "slabika"],
-  ["Jmenuj jakýkoli chemický prvek", "Francie"],
-  ["Jmenuj českého herce nebo herečku", "Bohdan"],
-  ["Jmenuj jakoukoli květinu", "mušketa"],
-  ["Jmenuj příchuť zmrzliny", "šmudla"],
+  [Q.prvek, "Francie"],
+  [Q.mesic, "pondělí"],
+  [Q.poke, "Agumon"],
+  [Q.usa, "Tomáš"],
+  [Q.f1, "Petr"],
+  [Q.kost, ""],
 ];
 
 let fail = 0;

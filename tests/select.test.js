@@ -23,8 +23,10 @@ const check = (ok, msg) => { if (!ok) { fail++; console.log("✗ " + msg); } };
 // 1) 30 her po sobě, mezi hrami „reload“: uložit → zahodit stav → znovu načíst
 {
   const ls = fakeLS(); const seen = new Map(); let asked = 0, firstRepeat = null;
+  let prev = null;
   for (let g = 1; g <= 30; g++) {
     const st = loadState(ls); // reload stránky
+    if (prev) check(st.seq === prev.seq && st.used.length === prev.used && Object.keys(st.fam).length === prev.fam, `hra ${g}: po reloadu se ztratila paměť (seq ${st.seq} ≠ ${prev.seq})`);
     const run = { asked: new Set(), fams: new Set() };
     const n = 5 + Math.floor(rnd() * 14); // délka ponoru 5–18 otázek
     for (let i = 1; i <= n; i++) {
@@ -33,6 +35,7 @@ const check = (ok, msg) => { if (!ok) { fail++; console.log("✗ " + msg); } };
       seen.set(p.fam, (seen.get(p.fam) || 0) + 1);
       check(saveState(ls, st), "stav se neuložil");
     }
+    prev = { seq: st.seq, used: st.used.length, fam: Object.keys(st.fam).length };
   }
   check(!firstRepeat, "téma se zopakovalo dřív, než padla všechna: " + firstRepeat);
   console.log(`30 her: ${asked} otázek, ${seen.size} různých témat, opakování: ${firstRepeat ? "ANO" : "žádné"}`);
