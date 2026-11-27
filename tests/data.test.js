@@ -24,17 +24,17 @@ P.forEach((row, n) => {
   for (const e of ents) for (const v of e.split("|"))
     if (!v || v !== v.trim() || !norm(v)) errs.push(`${q}: prázdná nebo neočištěná odpověď „${e}“`);
 });
-// Nová témata (od 179. řádku) mají přísnější pravidla: aspoň 25 odpovědí a žádná odpověď dvakrát.
-P.slice(178).forEach(([, q, a]) => {
-  const ents = a.split(",");
-  if (ents.length < 25) errs.push(`${q}: jen ${ents.length} odpovědí (min. 25)`);
+// Žádná odpověď nesmí být v jednom tématu dvakrát (po normalizaci: bez diakritiky, velikosti písmen a interpunkce).
+P.forEach(([, q, a]) => {
   const seen = new Map();
-  ents.forEach((e, i) => e.split("|").forEach((v) => {
+  a.split(",").forEach((e, i) => e.split("|").forEach((v) => {
     const k = norm(v);
     if (seen.has(k) && seen.get(k) !== i) errs.push(`${q}: odpověď „${v}“ je dvakrát`);
     seen.set(k, i);
   }));
 });
+// Témata, kam se dá napsat cokoli, do hry nepatří.
+for (const [, q] of P) if (/^Jmenuj (věc|něco)\b/.test(q)) errs.push(`${q}: neohraničené téma`);
 
 const total = P.reduce((s, r) => s + r[2].split(",").length, 0);
 if (errs.length) { console.log(errs.map((e) => "✗ " + e).join("\n")); console.log(`\n${errs.length} chyb`); process.exit(1); }

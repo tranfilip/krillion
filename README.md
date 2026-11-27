@@ -9,9 +9,9 @@ index.html          stránka hry
 styles.css          vzhled (tekuté sklo, HUD, karty)
 src/game.js         logika hry, vykreslování oceánu, potápěč, výběr otázek
 src/shim.js         napojení na Clauda přes /api/ai (mimo claude.ai)
-data/questions.js   všechna témata a odpovědi (335 témat, 24 000+ odpovědí)
+data/questions.js   všechna témata a odpovědi (300 témat, 25 000+ odpovědí)
 api/ai.js           serverová funkce pro Vercel – volá Anthropic API s tvým klíčem
-tests/              testy rozpoznávání odpovědí a kontrola dat (npm test)
+tests/              testy rozpoznávání, výběru témat a kontrola dat (npm test)
 ```
 
 ### Formát otázek (`data/questions.js`)
@@ -24,7 +24,7 @@ tests/              testy rozpoznávání odpovědí a kontrola dat (npm test)
 - odpovědi jsou oddělené čárkou a **seřazené od nejčastější po nejvzácnější** – podle pořadí se počítá vzácnost 1–5,
 - `|` odděluje různé názvy jedné odpovědi (první se zobrazuje).
 
-Hra sama snese překlepy, chybějící diakritiku i jiné tvary slova. U víceslovných odpovědí stačí napsat odlišující část („arabská“ → Arabská káva, „lední“ → Lední medvěd), pokud je jednoznačná.
+Hra sama snese překlepy, chybějící diakritiku i jiné tvary slova. Uzná i jiné tvary slova („šmoulová“ = Šmoulí, „čokoláda“ = Čokoládová) a u víceslovných odpovědí stačí napsat odlišující část („arabská“ → Arabská káva, „lední“ → Lední medvěd), pokud je jednoznačná.
 
 - v odpovědi nesmí být čárka (odděluje odpovědi) – „Marečku, podejte mi pero“ zapiš bez čárky,
 - nová témata: aspoň 25 odpovědí, jasný rozsah zadání („v Česku“, „i bývalého“, „kdekoli na světě“).
@@ -33,7 +33,7 @@ Hra sama snese překlepy, chybějící diakritiku i jiné tvary slova. U vícesl
 
 ```bash
 npm run dev          # jen hra, bez Clauda (vestavěné seznamy)
-npm test             # testy rozpoznávání odpovědí a kontrola dat
+npm test             # testy rozpoznávání, výběru témat a kontrola dat
 npm run dev:ai       # hra i s Claudem (potřebuje Vercel CLI a .env.local s klíčem)
 ```
 
@@ -57,5 +57,5 @@ Bez klíče hra normálně funguje, jen nerozpozná odpovědi, které nejsou v s
 
 ## Rozdíly oproti verzi na claude.ai
 
-- Rekord a paměť odehraných otázek se ukládají v prohlížeči každého hráče (localStorage), ne k účtu.
+- Rekord a paměť odehraných otázek se ukládají v prohlížeči každého hráče (localStorage), ne k účtu. Témata se neopakují, dokud se nevystřídají všechna. Safari maže data webů, které týden neotevřeš – hra proto žádá o trvalé úložiště, ale zaručené to není.
 - Claude běží přes tvůj vlastní API klíč, ne přes účet hráče.

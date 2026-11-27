@@ -108,3 +108,6 @@ button:focus-visible{outline:2px solid #fff;outline-offset:3px}
 .toast.on{opacity:1;transform:translate(-50%,0)}
 @media(pointer:coarse){.glass{-webkit-backdrop-filter:none;backdrop-filter:none;background:linear-gradient(180deg,rgba(150,215,240,.34),rgba(40,110,160,.30) 45%,rgba(10,40,80,.42));will-change:auto}.play .card{background:linear-gradient(180deg,rgba(120,195,230,.38),rgba(20,70,120,.55) 50%,rgba(6,28,60,.62))}.pill{background:linear-gradient(180deg,rgba(150,215,240,.38),rgba(20,70,120,.5))}#sea{will-change:transform}.card.in{animation-duration:.35s}.glass::after{animation:none}.o2.low i:not(.off){animation:none;box-shadow:inset 0 0 0 1px #ffb3a8,0 0 14px #ff8a7a}}
 @media(prefers-reduced-motion:reduce){*,*::after{animation:none!important;transition:none!important}}
+/* úvodní skok z lodi: karta je už v DOM (kvůli fokusu inputu na iOS), ale ještě není vidět */
+.stage.intro .card{opacity:0;transform:translateY(14px);pointer-events:none;transition:none}
+body:has(.stage.intro) .hud{opacity:0}

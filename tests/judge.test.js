@@ -86,6 +86,24 @@ const MUST = [
   [Q.napoj, "minerální", "Minerálka"],
   [Q.povolani, "automechanik", true],
   [Q.stat, "Česko", true],
+  // nahlášené chyby: tvary a odvozeniny, chybějící odpovědi
+  ["Jmenuj českého herce nebo herečku", "Štěpán Kozub", "Štěpán Kozub"],
+  ["Jmenuj českého herce nebo herečku", "kozub", "Štěpán Kozub"],
+  ["Jmenuj příchuť zmrzliny", "šmoulová", "Šmoulí"],
+  ["Jmenuj příchuť zmrzliny", "šmoulí", "Šmoulí"],
+  ["Jmenuj příchuť zmrzliny", "šmoula", "Šmoulí"],
+  ["Jmenuj příchuť zmrzliny", "čokoláda", "Čokoládová"],
+  ["Jmenuj příchuť zmrzliny", "čokoládová", "Čokoládová"],
+  ["Jmenuj příchuť zmrzliny", "vanilka", "Vanilková"],
+  ["Jmenuj příchuť zmrzliny", "vanilkova", "Vanilková"],
+  ["Jmenuj příchuť zmrzliny", "pistáciová", "Pistáciová"],
+  ["Jmenuj příchuť zmrzliny", "pistácie", "Pistáciová"],
+  ["Jmenuj příchuť zmrzliny", "jahodovou", "Jahodová"],
+  ["Jmenuj sportovní vybavení nebo pomůcku", "obruč", true],
+  ["Jmenuj sportovní vybavení nebo pomůcku", "obruc", true],
+  ["Jmenuj druh čaje", "mátový", true],
+  ["Jmenuj druh čaje", "máta", true],
+  ["Jmenuj mléčný výrobek", "jogurtová", "Jogurt"],
   // nová témata
   ["Jmenuj šelmu (masožravého savce)", "lední", "Lední medvěd"],
   ["Jmenuj stát, kde se platí eurem", "bulharsko", "Bulharsko"],
@@ -129,6 +147,12 @@ const MUST_NOT = [
   [Q.kava, ""],
   ["Jmenuj model auta (kterékoli značky)", "ford"],   // značka, ne model
   ["Jmenuj druh salátu (jídla)", "salát"],
+  // kmeny slov nesmí splývat s jinými slovy
+  ["Jmenuj ptáka", "slabika"],
+  ["Jmenuj jakýkoli chemický prvek", "Francie"],
+  ["Jmenuj českého herce nebo herečku", "Bohdan"],
+  ["Jmenuj jakoukoli květinu", "mušketa"],
+  ["Jmenuj příchuť zmrzliny", "šmudla"],
 ];
 
 let fail = 0;
