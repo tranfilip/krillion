@@ -9,7 +9,7 @@ index.html          stránka hry
 styles.css          vzhled (tekuté sklo, HUD, karty)
 src/game.js         logika hry, vykreslování oceánu, potápěč, výběr otázek
 src/shim.js         napojení na Clauda přes /api/ai (mimo claude.ai)
-data/questions.js   všechna témata a odpovědi (203 uzavřených témat, ~9 000 odpovědí)
+data/questions.js   všechna témata a odpovědi (209 témat s úplným výčtem odpovědí)
 api/ai.js           serverová funkce pro Vercel – volá Anthropic API s tvým klíčem
 tests/              testy rozpoznávání, výběru témat a kontrola dat (npm test)
 ```
@@ -27,7 +27,7 @@ tests/              testy rozpoznávání, výběru témat a kontrola dat (npm t
 Hra sama snese překlepy, chybějící diakritiku i jiné tvary slova. Uzná i jiné tvary slova („šmoulová“ = Šmoulí, „čokoláda“ = Čokoládová) a u víceslovných odpovědí stačí napsat odlišující část („arabská“ → Arabská káva, „lední“ → Lední medvěd), pokud je jednoznačná.
 
 - v odpovědi nesmí být čárka (odděluje odpovědi) – „Marečku, podejte mi pero“ zapiš bez čárky,
-- nová témata: jen uzavřené množiny, které jdou vyjmenovat celé (státy, kraje, týmy ligy, vítězové soutěže…), aspoň 8 odpovědí, jasný rozsah zadání („v Česku“, „i bývalého“, „od roku 1993“).
+- nová témata: jen ta, u nichž existuje oficiální nebo všeobecně uznávaný úplný výčet (státy, kraje, týmy ligy, vítězové soutěže…), aspoň 8 odpovědí, jasný rozsah zadání („v Česku“, „i bývalého“, „od roku 1993“).
 
 ## Spuštění na počítači
 

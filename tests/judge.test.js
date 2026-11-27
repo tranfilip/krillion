@@ -10,7 +10,7 @@ new Function("window", readFileSync(root + "data/questions.js", "utf8"))(window)
 const src = readFileSync(root + "src/game.js", "utf8");
 const a = src.indexOf("const norm="), b = src.indexOf("const tierFromPct");
 if (a < 0 || b < 0) throw new Error("V src/game.js nejde najít blok rozpoznávání");
-const { localJudge } = new Function("P", "window", src.slice(a, b) + "\nreturn{localJudge,looseLocal};")(window.KRILLION_DATA, window);
+const { localJudge, stem, norm } = new Function("P", "window", src.slice(a, b) + "\nreturn{localJudge,looseLocal,stem,norm};")(window.KRILLION_DATA, window);
 
 // název odpovědi i se všemi jejími variantami (Arabská káva = Arabská = Káva po arabsku)
 const variants = (q, name) => {
@@ -25,9 +25,9 @@ const Q = {
   evropa: "Jmenuj jakýkoli evropský stát",
   okres: "Jmenuj okresní město v Česku",
   kraj: "Jmenuj kraj České republiky",
-  barva: "Jmenuj jakoukoli barvu",
-  ovoce: "Jmenuj jakékoli ovoce",
-  sport: "Jmenuj jakýkoli sport",
+  zimni: "Jmenuj zimní olympijský sport",
+  vitamin: "Jmenuj vitamín",
+  den: "Jmenuj den v týdnu",
   tucnak: "Jmenuj druh tučňáka",
   kost: "Jmenuj kost v lidském těle",
   zverokruh: "Jmenuj znamení zvěrokruhu",
@@ -63,24 +63,20 @@ const MUST = [
   [Q.evropa, "česká", "Česká republika"],
   [Q.okres, "karlovy", "Karlovy Vary"],
   [Q.okres, "uherské", "Uherské Hradiště"],
-  // tvary přídavných jmen a kmeny slov
-  [Q.barva, "šmoulová", "Šmoulí"],
-  [Q.barva, "šmoulí", "Šmoulí"],
-  [Q.barva, "šmoula", "Šmoulí"],
-  [Q.barva, "čokoláda", "Čokoládová"],
-  [Q.barva, "čokoládovou", "Čokoládová"],
-  [Q.barva, "modrý", "Modrá"],
-  [Q.barva, "modrou", "Modrá"],
-  [Q.barva, "zelený", "Zelená"],
-  [Q.barva, "vanilka", "Vanilková"],
-  [Q.barva, "pistácie", "Pistáciová"],
-  [Q.barva, "jahoda", "Jahodová"],
-  [Q.barva, "rudá", "Rudá"],
+  // tvary přídavných jmen a podstatných jmen
+  [Q.kraj, "jihomoravská", "Jihomoravský"],
+  [Q.kraj, "Plzeňskej", "Plzeňský"],
   [Q.zverokruh, "blíženec", "Blíženci"],
   [Q.zverokruh, "štír", "Štír"],
   // hovorové varianty, zkratky, cizí názvy, bez diakritiky
-  [Q.sport, "kopaná", "Fotbal"],
-  [Q.sport, "hokej", true],
+  [Q.zimni, "běžky", "Běh na lyžích"],
+  [Q.zimni, "hokej", "Lední hokej"],
+  [Q.vitamin, "céčko", "Vitamín C"],
+  [Q.vitamin, "kyselina listová", true],
+  [Q.vitamin, "vitamin d", "Vitamín D"],
+  [Q.vitamin, "vitamín b12", "Vitamín B12"],
+  [Q.vitamin, "vitaminc", "Vitamín C"],
+  [Q.den, "streda", "Středa"],
   [Q.stat, "Česko", true],
   [Q.stat, "ČR", true],
   [Q.stat, "USA", true],
@@ -103,8 +99,6 @@ const MUST = [
   [Q.prvek, "wolfram", true],
   [Q.prvek, "tungsten", true],
   [Q.mesic, "leden", "Leden"],
-  [Q.ovoce, "jablko", "Jablko"],
-  [Q.ovoce, "pomerac", true],
   [Q.ryba, "kapr", "Kapr"],
   [Q.papez, "Pius", true],
   [Q.papez, "Jan Pavel II.", true],
@@ -124,10 +118,9 @@ const MUST_NOT = [
   [Q.stat, "republika"],
   [Q.okres, "nové"],
   [Q.okres, "český"],        // Český Krumlov / Česká Lípa
-  [Q.barva, "šmudla"],       // kmeny slov nesmí splývat s jinými slovy
-  [Q.barva, "auto"],
-  [Q.ovoce, "černý"],
-  [Q.ovoce, "auto"],
+  [Q.den, "víkend"],
+  [Q.vitamin, "vitamín"],
+  [Q.zimni, "fotbal"],
   [Q.prvek, "Francie"],
   [Q.mesic, "pondělí"],
   [Q.poke, "Agumon"],
@@ -137,6 +130,13 @@ const MUST_NOT = [
 ];
 
 let fail = 0;
+// kmeny slov: různé tvary přídavných a podstatných jmen se musí potkat, cizí slova ne
+const S = (x) => stem(norm(x));
+for (const [x, y] of [["šmoulová", "šmoulí"], ["šmoula", "šmoulí"], ["čokoláda", "čokoládová"], ["čokoládovou", "čokoláda"], ["vanilka", "vanilková"], ["pistácie", "pistáciová"], ["jahoda", "jahodová"]])
+  if (S(x) !== S(y)) { fail++; console.log(`✗ kmen „${x}“ ≠ „${y}“ (${S(x)} / ${S(y)})`); }
+for (const [x, y] of [["šmudla", "šmoulí"], ["slabika", "slaný"]])
+  if (S(x) === S(y)) { fail++; console.log(`✗ kmen „${x}“ nesmí splývat s „${y}“`); }
+
 for (const [q, ans, exp] of MUST) {
   const r = localJudge(q, ans);
   if (!r) { fail++; console.log(`✗ neznámé zadání: ${q}`); continue; }
