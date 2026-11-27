@@ -30,7 +30,11 @@ function close(a,b){if(a===b)return true;const L=Math.min(a.length,b.length);if(
  if(lev(a,b)<=tol(L))return true;
  if(L>=5&&Math.abs(a.length-b.length)<=2&&a.slice(0,-2)===b.slice(0,-2))return true; // slovní tvary: tygři, Paříže…
  return false}
-const strong=(n,v)=>close(n,v)||close(n.replace(/ /g,""),v.replace(/ /g,""));
+/* kmen slova: šmoulí/šmoulová/šmoula → smoul, čokoládová/čokoláda → cokolad, vanilková/vanilka → vanilk */
+const stem=t=>{if(t.length<5)return t;const r=t.replace(/(ovou|ove|ova|ovy|ovi|ou|emu|eho|ych|ymi|ie|ia)$/,"");return(r.length>=4?r:t).replace(/[aeiouy]$/,"")};
+const stemEqW=(a,b)=>{const x=stem(a),y=stem(b);return x.length>=4&&x===y};
+const stemAll=(n,v)=>{const a=n.split(" "),b=v.split(" ");return a.length===b.length&&a.some(t=>t.length>=5)&&a.every((t,i)=>t===b[i]||stemEqW(t,b[i])||close(t,b[i]))};
+const strong=(n,v)=>close(n,v)||close(n.replace(/ /g,""),v.replace(/ /g,""))||stemAll(n,v);
 function weak(n,v){const nt=n.split(" ").filter(t=>t.length>=3);
  if(!v.includes(" ")){if(nt.length>1&&v.length>=3&&nt.some(t=>close(t,v)))return true}
  else{const vt=v.split(" ").filter(t=>t.length>=3);if(vt.length&&vt.every(x=>nt.some(t=>close(t,x))))return true}
@@ -69,8 +73,33 @@ function localJudge(q,ans){const it=DBQ.get(q);if(!it)return null;const n=norm(a
  return{valid:false,reason:"Tohle neplatí",top}}
 const tierFromPct=p=>p>=12?0:p>=4?1:p>=1.2?2:p>=0.3?3:4;
 
-let st={best:0,runs:0,used:[],fam:{},seq:0,aiQ:{1:[],2:[],3:[],4:[]},dom:[]};try{Object.assign(st,JSON.parse(localStorage.getItem("krillion5")||"{}"))}catch(e){}
-if(!st.aiQ||typeof st.aiQ!=="object")st.aiQ={};for(const k of[1,2,3,4])if(!Array.isArray(st.aiQ[k]))st.aiQ[k]=[];if(!Array.isArray(st.dom))st.dom=[];
+/* ---------- paměť a výběr témat (testuje tests/select.test.js) ---------- */
+const KEY="krillion5";
+function loadState(ls){const s={best:0,runs:0,used:[],fam:{},cnt:{},seq:0,aiQ:{1:[],2:[],3:[],4:[]},dom:[]};
+ try{const r=JSON.parse(ls.getItem(KEY)||"{}");if(r&&typeof r==="object")Object.assign(s,r)}catch(e){}
+ const obj=x=>x&&typeof x==="object"&&!Array.isArray(x);if(!obj(s.fam))s.fam={};if(!obj(s.cnt))s.cnt={};if(!Array.isArray(s.used))s.used=[];if(!Array.isArray(s.dom))s.dom=[];
+ if(!obj(s.aiQ))s.aiQ={};for(const k of[1,2,3,4])if(!Array.isArray(s.aiQ[k]))s.aiQ[k]=[];s.seq=+s.seq||0;
+ for(const f in s.fam)if(!(s.cnt[f]>0)&&s.fam[f]>0)s.cnt[f]=1; // starší uložení bez počítadla: co už padlo, padlo jednou
+ return s}
+function saveState(ls,s){try{ls.setItem(KEY,JSON.stringify(s));return true}catch(e){return false}}
+/* Téma se smí zopakovat až po vystřídání všech ostatních: bere se jen z témat, která padla nejméněkrát,
+   z nich co nejblíž požadované obtížnosti, a mezi nimi to nejdéle nepoužité. */
+function pickTopic(st,run,l,rnd=Math.random){const fams=new Map();for(const x of DB){if(x.kind==="base"&&!fams.has(x.fam))fams.set(x.fam,x)}
+ let all=[...fams.values()].filter(x=>!run.fams.has(x.fam));if(!all.length)all=[...fams.values()];
+ const cnt=x=>st.cnt[x.fam]||0,seq=x=>st.fam[x.fam]||0,dist=x=>Math.abs(x.lvl-l);
+ const c0=Math.min(...all.map(cnt));let pool=all.filter(x=>cnt(x)===c0);
+ const d0=Math.min(...pool.map(dist));pool=pool.filter(x=>dist(x)===d0);
+ const s0=Math.min(...pool.map(seq));pool=pool.filter(x=>seq(x)===s0);
+ const pick=pool[Math.floor(rnd()*pool.length)];
+ run.asked.add(pick.q);run.fams.add(pick.fam);run.lastKind=pick.kind;
+ st.seq=(st.seq||0)+1;st.fam[pick.fam]=st.seq;st.cnt[pick.fam]=cnt(pick)+1;st.used.push(pick.q);if(st.used.length>2500)st.used=st.used.slice(-2500);return pick}
+/* zadání od Clauda nesmí být obměnou vestavěného tématu ani nedávno použitého zadání */
+const QSTOP=new Set("jmenuj jakekoli jakykoli jakoukoli jakehokoli nejakou nejaky nebo ktery ktera ktere kterou ktereho kterehokoli kterykoli kdekoli svete celem sveta cesku cesky ceske ceskou ceskeho bylo byvaly byvaleho byvalou byvale treba napriklad".split(" "));
+const qWords=q=>norm(q).split(" ").filter(w=>w.length>=3&&!QSTOP.has(w)).map(w=>w.slice(0,5));
+function tooSimilar(q,list){const a=new Set(qWords(q));if(!a.size)return true;
+ for(const o of list){const b=new Set(qWords(o));if(!b.size)continue;let k=0;for(const w of a)if(b.has(w))k++;if(k/Math.min(a.size,b.size)>=.6)return true}return false}
+/* ---------- konec výběru ---------- */
+let st=loadState(localStorage);
 /* trvalá paměť: úložiště artefaktu (přežije zavření aplikace), záloha v prohlížeči */
 let dbRef=null,remoteBusy=false,remoteDirty=false,remoteT=null;
 function mergeState(r){if(!r||typeof r!=="object")return;st.best=Math.max(st.best||0,+r.best||0);st.runs=Math.max(st.runs||0,+r.runs||0);st.seq=Math.max(st.seq||0,+r.seq||0);
@@ -81,9 +110,11 @@ function mergeState(r){if(!r||typeof r!=="object")return;st.best=Math.max(st.bes
 async function pushRemote(){if(!dbRef||remoteBusy)return;remoteBusy=true;remoteDirty=false;
  try{await dbRef.set({best:st.best,runs:st.runs,seq:st.seq,fam:st.fam,used:st.used.slice(-2500),aiQ:st.aiQ,dom:st.dom.slice(-60)})}catch(e){}
  remoteBusy=false;if(remoteDirty)pushRemote()}
-const save=()=>{try{localStorage.setItem("krillion5",JSON.stringify(st))}catch(e){}remoteDirty=true;clearTimeout(remoteT);remoteT=setTimeout(pushRemote,1500)};
+const save=()=>{saveState(localStorage,st);remoteDirty=true;clearTimeout(remoteT);remoteT=setTimeout(pushRemote,1500)};
 (async()=>{try{if(!window.claude||!window.claude.use)return;const[db,user]=await Promise.all([window.claude.use("db"),window.claude.use("user")]);if(!db||!user)return;const id=await user.id();if(!id)return;
- const ref=db.doc("data/users/"+id+"/krillion");const snap=await ref.get();dbRef=ref;if(snap.exists){mergeState(snap.data());try{localStorage.setItem("krillion5",JSON.stringify(st))}catch(e){}}}catch(e){}})();
+ const ref=db.doc("data/users/"+id+"/krillion");const snap=await ref.get();dbRef=ref;if(snap.exists){mergeState(snap.data());saveState(localStorage,st)}}catch(e){}})();
+// Safari po 7 dnech bez návštěvy maže localStorage; požádej o trvalé úložiště, kde to jde
+try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist().catch(()=>{})}catch(e){}
 
 /* ---------- Claude ---------- */
 let sample=null,aiWarned=false;
@@ -106,8 +137,8 @@ Obtížnost: ${LV[l]}.
 Pravidla: zadání musí být jednoznačné a vždy upřesnit rozsah (např. "(i bývalého)", "kdekoli na světě", "v Česku"); nikdy se neptej na jednu konkrétní věc (žádné "současný", "první", "nejvyšší"); musí existovat aspoň 15 správných odpovědí, u snadných stovky; max 10 slov; začni slovem "Jmenuj"; buď kreativní a nepoužívej otřepaná témata (ovoce, zvíře, barva, hlavní město), pokud obor přímo nevyžaduje.
 Nepoužívej tato zadání ani jejich obměny: ${JSON.stringify(st.used.slice(-60))}
 Vrať pouze JSON: {"prompts":[{"q":"...","d":"obor"}, ...]}`);
-  const seen=new Set(st.used.map(norm));for(const k of[1,2,3,4])for(const p of aiQ[k])seen.add(norm(p.q));
-  for(const p of(r&&r.prompts||[])){const q=typeof p==="string"?p:p&&p.q;if(typeof q!=="string"||q.length>100||!/^jmenuj/i.test(q.trim()))continue;const k=norm(q);if(seen.has(k))continue;seen.add(k);aiQ[l].push({q:q.trim(),d:String(p.d||"").slice(0,60)})}
+  const known=[...BASE.map(b=>b.q),...st.used.slice(-400)];for(const k of[1,2,3,4])for(const p of aiQ[k])known.push(p.q);
+  for(const p of(r&&r.prompts||[])){const q=typeof p==="string"?p:p&&p.q;if(typeof q!=="string"||q.length>100||!/^jmenuj/i.test(q.trim()))continue;if(tooSimilar(q,known))continue;known.push(q);aiQ[l].push({q:q.trim(),d:String(p.d||"").slice(0,60)})}
   st.dom.push(...doms);st.dom=st.dom.slice(-60);save()}catch(e){}genBusy[l]=false}
 async function aiJudge(q,ans){const r=await askAI(`Jsi rozhodčí české trivia hry Krillion. Zadání: "${q}". Odpověď hráče: "${ans}".
 1) Je odpověď věcně správná a odpovídá zadání? Buď velmi tolerantní: přijmi odpovědi s diakritikou i bez ní, s překlepy, celé jméno i jen příjmení, synonyma, poddruhy a odrůdy (např. "bílý tygr" je zvíře), složená slova (např. "automechanik" je povolání), hovorové, cizí i odborné názvy (např. "dračí ovoce" = pitahaya). Neplatné je jen to, co je jednoznačně špatně, mimo zadání, příliš obecné nebo nesmysl. Když si nejsi jistý, odpověď UZNEJ. Příklady platných odpovědí: "Hanoj" je hlavní město (Vietnam), "Kost" je český hrad, "Jazz" je hudební žánr.
@@ -194,6 +225,63 @@ function diver(x,y,t,tilt){const sp=230-kick*90,k=Math.sin(t/sp)*(1+kick*.7),k2=
  cx.restore()}
 function head(x,y,tilt){const c=Math.cos(tilt),s=Math.sin(tilt),lx=31.6*1.18,ly=-14.3*1.18;return[x+c*lx-s*ly,y+s*lx+c*ly]}
 function mouth(x,y,tilt){const c=Math.cos(tilt),s=Math.sin(tilt),lx=38*1.18,ly=1*1.18;return[x+c*lx-s*ly,y+s*lx+c*ly]}
+/* ---------- úvod: potápěč se z lodi zády převalí do vody (back roll), kamera sjede pod hladinu ---------- */
+const INTRO=2600,ROLL0=420,ROLL1=1150,CAM0=1200,CAM1=2450;
+let intro=null;const drops=[];
+const eIO=x=>x<=0?0:x>=1?1:x<.5?2*x*x:1-(-2*x+2)**2/2,eIn=x=>x<=0?0:x>=1?1:x*x;
+// cachované gradienty (v lokálních souřadnicích, kreslí se přes translate)
+let SKY=null,SKYK="";function skyG(h){const k=h|0;if(SKYK!==k){SKYK=k;SKY=cx.createLinearGradient(0,-h,0,0);SKY.addColorStop(0,"#5fc3e6");SKY.addColorStop(.55,"#a9e3f3");SKY.addColorStop(.78,"#e6f8fb");SKY.addColorStop(.8,"#4fb2d6");SKY.addColorStop(1,"#2591c2")}return SKY}
+let BG=null,BGL=0;function boatG(L){if(BGL===L)return BG;BGL=L;const H1=L*.16,g=(a,b,c)=>{const x=cx.createLinearGradient(0,a,0,b);for(const[o,col]of c)x.addColorStop(o,col);return x};
+ BG={hull:g(-H1,L*.07,[[0,"#f4fbff"],[.45,"#d6e6ef"],[.62,"#1c3550"],[1,"#0e1f33"]]),cab:g(-H1-L*.17,-H1,[[0,"#ffffff"],[1,"#cfdde6"]]),win:g(-H1-L*.15,-H1-L*.06,[[0,"#e5fdff"],[.4,"#6fd8ef"],[1,"#155d80"]]),
+  under:g(0,L*.08,[[0,"rgba(20,120,170,.55)"],[1,"rgba(10,70,120,.75)"]])};return BG}
+function boat(x,y,L,t){const H1=L*.16,G=boatG(L),r=Math.sin(t/760)*.025;cx.save();cx.translate(x,y);cx.rotate(r);
+ // konzole s předním sklem, stožár s vlajkou „potápěč pod vodou“
+ cx.fillStyle=G.cab;cx.beginPath();cx.moveTo(-L*.02,-H1);cx.lineTo(L*.03,-H1-L*.17);cx.lineTo(L*.2,-H1-L*.17);cx.lineTo(L*.27,-H1);cx.closePath();cx.fill();
+ cx.fillStyle=G.win;cx.beginPath();cx.moveTo(L*.045,-H1-L*.15);cx.lineTo(L*.19,-H1-L*.15);cx.lineTo(L*.23,-H1-L*.06);cx.lineTo(L*.025,-H1-L*.06);cx.closePath();cx.fill();
+ cx.fillStyle="rgba(255,255,255,.8)";cx.beginPath();cx.moveTo(L*.06,-H1-L*.145);cx.lineTo(L*.09,-H1-L*.145);cx.lineTo(L*.06,-H1-L*.07);cx.fill();
+ cx.strokeStyle="#3b4a58";cx.lineWidth=2;cx.beginPath();cx.moveTo(L*.12,-H1-L*.17);cx.lineTo(L*.12,-H1-L*.36);cx.stroke();
+ const fw=Math.sin(t/260)*2;cx.fillStyle="#e8402f";cx.beginPath();cx.moveTo(L*.12,-H1-L*.36);cx.lineTo(L*.24,-H1-L*.355+fw);cx.lineTo(L*.24,-H1-L*.275+fw);cx.lineTo(L*.12,-H1-L*.28);cx.closePath();cx.fill();
+ cx.strokeStyle="#fff";cx.lineWidth=2.6;cx.beginPath();cx.moveTo(L*.125,-H1-L*.352);cx.lineTo(L*.235,-H1-L*.283+fw);cx.stroke();
+ // náhradní láhev v lodi
+ cx.fillStyle="#f4cb55";cx.beginPath();cx.roundRect(-L*.2,-H1-L*.1,L*.045,L*.11,L*.02);cx.fill();cx.fillStyle="#3b3f45";cx.fillRect(-L*.188,-H1-L*.12,L*.02,L*.025);
+ // trup: bílý nahoře, tmavé dno, oranžový pruh
+ const hull=()=>{cx.beginPath();cx.moveTo(-L*.5,-H1);cx.lineTo(L*.36,-H1);cx.quadraticCurveTo(L*.5,-H1-L*.02,L*.53,-H1-L*.05);cx.quadraticCurveTo(L*.44,L*.02,L*.3,L*.07);cx.lineTo(-L*.46,L*.07);cx.quadraticCurveTo(-L*.5,L*.03,-L*.5,-H1)};
+ cx.fillStyle=G.hull;hull();cx.fill();
+ cx.fillStyle="#ff8a6b";cx.beginPath();cx.moveTo(-L*.5,-H1*.5);cx.lineTo(L*.47,-H1*.62);cx.lineTo(L*.45,-H1*.44);cx.lineTo(-L*.5,-H1*.32);cx.closePath();cx.fill();
+ cx.fillStyle="#2a3b50";cx.fillRect(-L*.5,-H1-2,L*.87,3);
+ cx.strokeStyle="rgba(190,205,215,.9)";cx.lineWidth=1.6;cx.beginPath();cx.moveTo(-L*.42,-H1);cx.lineTo(-L*.42,-H1-L*.07);cx.lineTo(L*.34,-H1-L*.07);cx.lineTo(L*.34,-H1);cx.stroke();
+ // ponořená část trupu je vidět pod hladinou přes vodu
+ cx.save();cx.beginPath();cx.rect(-L,0,L*2,L*.2);cx.clip();cx.fillStyle=G.under;hull();cx.fill();cx.restore();
+ cx.restore()}
+function startIntro(done){intro={t0:performance.now(),done,splash:false,ex:0,ey:0};drops.length=0}
+function endIntro(){if(!intro)return;const d=intro.done;intro=null;drops.length=0;d&&d()}
+function introFrame(t,dxp,dyp,tilt){const e=t-intro.t0;if(e>=INTRO){endIntro();return null}
+ const s0=vTop+vH*.47,sEnd=vTop-vH*.3,sY=s0+(sEnd-s0)*eIO((e-CAM0)/(CAM1-CAM0))+Math.sin(t/700)*2;
+ const L=Math.min(W*.62,300),bx=W*.56,by=sY-L*.012;
+ // nebe a vzdálená hladina nad čarou vody
+ if(sY>0){cx.save();cx.translate(0,sY);cx.fillStyle=skyG(vH*.75);cx.fillRect(0,-sY-2,W,sY+2);cx.fillStyle="rgba(255,255,255,.75)";
+  for(let i=0;i<3;i++){const cxp=((i*.37+t/90000)%1)*W*1.3-W*.15,cyp=-vH*(.6-i*.09);cx.beginPath();cx.ellipse(cxp,cyp,46+i*14,10+i*3,0,0,7);cx.ellipse(cxp+30,cyp-6,26,9,0,0,7);cx.fill()}
+  cx.restore()}
+ // potápěč: sedí na okraji, zády se převalí do vody, pod vodou doplave na své místo
+ const G0x=bx-L*.44,G0y=by-L*.16,sc0=.62;let px,py,rot,sc;
+ if(e<ROLL1){const p=eIn((e-ROLL0)/(ROLL1-ROLL0)),lean=e<ROLL0?Math.sin(e/120)*.04:0;
+  rot=-Math.PI/2-p*Math.PI-lean;sc=sc0;px=G0x-p*L*.16;py=G0y-20*sc0+p*(sY+30-(G0y-20*sc0));
+  if(!intro.splash&&py>sY-6){intro.splash=true;intro.ex=px;intro.ey=py-sY;
+   for(let i=0;i<(MOBILE?22:34);i++){const a=-Math.PI/2+(Math.random()-.5)*1.7,v=Math.random()*4.5+2.5;drops.push({x:px+(Math.random()-.5)*18,y:-2,vx:Math.cos(a)*v,vy:Math.sin(a)*v,r:Math.random()*2.4+1,l:1})}
+   for(let i=0;i<(MOBILE?24:40);i++)bub.push({x:px+(Math.random()-.5)*40,y:sY+10+Math.random()*50,r:Math.random()*4+1.5,vy:Math.random()*1.4+.8,d:Math.random()*400,w:Math.random()*6})}}
+ else{const q=eIO((e-ROLL1)/(INTRO-ROLL1-80));const x1=intro.ex||G0x-L*.2,y1=sY+(intro.ey||28);
+  rot=-Math.PI*1.5+q*(-Math.PI*.5+tilt);sc=sc0+(1-sc0)*q;px=x1+(dxp-x1)*q;py=y1+(dyp-y1)*q}
+ // kapky nad hladinou a pěna kolem místa dopadu
+ for(let i=drops.length-1;i>=0;i--){const d=drops[i];d.x+=d.vx;d.y+=d.vy;d.vy+=.32;if(d.y>0&&d.vy>0){drops.splice(i,1);continue}}
+ if(drops.length){cx.fillStyle="rgba(245,253,255,.95)";cx.beginPath();for(const d of drops){const y=sY+d.y;cx.moveTo(d.x+d.r,y);cx.arc(d.x,y,d.r,0,7)}cx.fill()}
+ if(intro.splash){const k=Math.min(1,(e-ROLL1+120)/700);if(k<1){cx.strokeStyle=`rgba(255,255,255,${.85*(1-k)})`;cx.lineWidth=3*(1-k)+1;cx.beginPath();cx.ellipse(intro.ex,sY,14+k*70,3+k*8,0,0,7);cx.stroke()}}
+ // čára hladiny (vlnky) a světlý pás těsně pod ní
+ if(sY>-20&&sY<H+20){cx.fillStyle="rgba(255,255,255,.18)";cx.fillRect(0,sY,W,18);cx.strokeStyle="rgba(255,255,255,.85)";cx.lineWidth=2;cx.beginPath();for(let x=0;x<=W;x+=12){const y=sY+Math.sin(x/30+t/300)*2.2+Math.sin(x/11-t/210)*1;x?cx.lineTo(x,y):cx.moveTo(x,y)}cx.stroke()}
+ const seated=e<ROLL0+90; // dokud sedí, nohy jsou v lodi (za trupem); při převalu přepadnou přes okraj
+ if(!seated)boat(bx,by,L,t);
+ cx.save();cx.translate(px,py);cx.scale(sc,sc);diver(0,0,t,rot);cx.restore();
+ if(seated)boat(bx,by,L,t);
+ return sY}
 function draw(t){const dt=Math.min(t-lastT,50)||16;lastT=t;frameAvg=frameAvg*.95+dt*.05;
  if(t>8000&&frameAvg>24&&Q>0&&!draw.cool){Q--;SBK=0;draw.cool=1;setTimeout(()=>draw.cool=0,3000);rs()}
  const prev=depth;depth+=(target-depth)*(RM?1:Math.min(1,dt/ease));const v=depth-prev;
@@ -227,11 +315,12 @@ function draw(t){const dt=Math.min(t-lastT,50)||16;lastT=t;frameAvg=frameAvg*.95
  if(deep>.05){cx.save();cx.globalCompositeOperation="lighter";cx.globalAlpha=deep*.55;for(const col of["#8ff7ff","#a9ffcf"]){cx.fillStyle=col;cx.beginPath();for(const p of glow){if(p.c!==col||Math.sin(t/700+p.p)<0)continue;const x=p.x*W,y=((p.y-depth/4000)%1+1)%1*H;cx.moveTo(x+1.7,y);cx.arc(x,y,1.7,0,7)}cx.fill()}cx.restore();cx.globalAlpha=1}
  for(const c of vis){if(deep>.4&&GLOWY.has(c.k))creature(c.k,c.x,c.y,t,c.d,true,c.dir);if(c.k==="angler")lure(c.x,c.y,t,c.dir)}
  const[mx,my]=mouth(dxp,dyp,tilt);
- if(t>nextBreath){nextBreath=t+1500+Math.random()*900;for(let i=0;i<6;i++)bub.push({x:mx,y:my,r:Math.random()*3+1.4,vy:Math.random()*.8+1,d:i*80,w:Math.random()*6})}
- if(v>1&&bub.length<90&&Math.random()<.5)bub.push({x:dxp-40+(Math.random()-.5)*16,y:dyp,r:Math.random()*2.5+1.2,vy:Math.random()*1.2+1.4,d:0,w:Math.random()*6});
+ if(!intro&&t>nextBreath){nextBreath=t+1500+Math.random()*900;for(let i=0;i<6;i++)bub.push({x:mx,y:my,r:Math.random()*3+1.4,vy:Math.random()*.8+1,d:i*80,w:Math.random()*6})}
+ if(!intro&&v>1&&bub.length<90&&Math.random()<.5)bub.push({x:dxp-40+(Math.random()-.5)*16,y:dyp,r:Math.random()*2.5+1.2,vy:Math.random()*1.2+1.4,d:0,w:Math.random()*6});
  for(let i=bub.length-1;i>=0;i--){const b=bub[i];if(b.d>0){b.d-=dt;continue}b.y-=b.vy*dt/16;b.x+=Math.sin(b.y/18+b.w)*.5;cx.drawImage(BUB,b.x-b.r,b.y-b.r,b.r*2,b.r*2);if(b.y<-10)bub.splice(i,1)}
- diver(dxp,dyp,t,tilt);
- if(deep>0){cx.save();cx.globalCompositeOperation="lighter";cx.fillStyle="rgba(255,250,220,.95)";cx.shadowBlur=16;cx.shadowColor="#fff6c8";cx.beginPath();cx.arc(hx,hy,2.6,0,7);cx.fill();cx.restore()}
+ let iSY=null;if(intro)iSY=introFrame(t,dxp,dyp,tilt);if(!intro)diver(dxp,dyp,t,tilt);
+ if(iSY!==null)for(let i=bub.length-1;i>=0;i--)if(bub[i].y<iSY+4)bub.splice(i,1);
+ if(deep>0&&!intro){cx.save();cx.globalCompositeOperation="lighter";cx.fillStyle="rgba(255,250,220,.95)";cx.shadowBlur=16;cx.shadowColor="#fff6c8";cx.beginPath();cx.arc(hx,hy,2.6,0,7);cx.fill();cx.restore()}
  cx.save();cx.globalCompositeOperation="lighter";for(let i=sparks.length-1;i>=0;i--){const s=sparks[i];s.x+=s.vx*dt/16;s.y+=s.vy*dt/16;s.vy+=.02;s.l-=dt/950;if(s.l<=0){sparks.splice(i,1);continue}cx.globalAlpha=s.l;cx.fillStyle=s.c;cx.shadowBlur=12;cx.shadowColor=s.c;cx.beginPath();cx.arc(s.x,s.y,s.r*s.l+.4,0,7);cx.fill()}cx.restore();
  cx.globalAlpha=.22+deep*.3;cx.drawImage(VIG,0,0,W,H);cx.globalAlpha=1;
  const dmT=fmt(depth);if($("dm").textContent!==dmT)$("dm").textContent=dmT;$("mark").style.top=Math.min(depth/11000,1)*100+"%";
@@ -251,21 +340,9 @@ function setDepth(m,slow){ease=slow?2600:1000;if(m>target){kick=1;const d=$("dm"
 function home(){run=null;o2();setDepth(0,true);stage.classList.remove("play");
  swap(`<h1>Krillion</h1><p class="lede">Vzácnější odpověď tě vezme hlouběji. Otázky postupně přitvrzují. Ponor končí, až dojde kyslík.</p><div class="rules"><span><i></i><i></i><i></i>&nbsp;3 bubliny</span><span>chyba = −1</span><span>Jeden z krilionu = +1</span></div><button class="btn" id="go">Ponořit se</button>${st.best?`<div class="meta"><span>Rekord <b>${fmt(st.best)}</b></span><span>Ponorů <b>${st.runs}</b></span></div>`:""}`,()=>{$("go").onclick=start})}
 function nextPrompt(l){gen(l);gen(Math.min(4,l+1));
+ while(aiQ[l].length&&tooSimilar(aiQ[l][0].q,st.used.slice(-400)))aiQ[l].shift(); // starší fronta od Clauda
  if(aiQ[l].length&&Math.random()<.55){const i=Math.max(0,aiQ[l].findIndex(p=>!run.fams.has("dom:"+p.d)));const p=aiQ[l].splice(i,1)[0];run.asked.add(p.q);run.fams.add("dom:"+p.d);run.lastKind="ai";st.used.push(p.q);save();return{q:p.q,ai:true}}
- const used=new Set(st.used);
- const ok=x=>!used.has(x.q)&&!run.asked.has(x.q)&&!run.fams.has(x.fam);
- let all=DB.filter(ok);
- if(!all.length){const lv=new Set(DB.filter(x=>x.lvl===l).map(x=>x.q));st.used=st.used.filter(x=>!lv.has(x));all=DB.filter(x=>!run.asked.has(x.q)&&!run.fams.has(x.fam))}
- const seqOf=c=>st.fam[c.fam]||0,dist=c=>Math.abs(c.lvl-l);
- // 1) téma, které ještě nepadlo, co nejblíž obtížnosti; 2) jinak nejdéle nepoužité téma v blízké obtížnosti
- const near=all.filter(c=>dist(c)<=1);const minNear=Math.min(...near.map(seqOf));const fresh=all.filter(c=>seqOf(c)===0);
- let pool;if(fresh.length&&(!near.length||minNear>0)){const dmin=Math.min(...fresh.map(dist));pool=fresh.filter(c=>dist(c)===dmin)}
- else if(near.length){const exact=near.filter(c=>seqOf(c)===minNear);const dmin=Math.min(...exact.map(dist));pool=exact.filter(c=>dist(c)===dmin)}
- else{const m=Math.min(...all.map(seqOf));pool=all.filter(c=>seqOf(c)===m)}
- {const vary=pool.filter(c=>c.kind==="base"||c.kind!==run.lastKind);if(vary.length)pool=vary}
- const fams=[...new Set(pool.map(c=>c.fam))];const fam=fams[Math.floor(Math.random()*fams.length)];const opts=pool.filter(c=>c.fam===fam);
- const pick=opts.find(c=>c.kind==="base")||opts[Math.floor(Math.random()*opts.length)];
- run.lastKind=pick.kind;run.asked.add(pick.q);run.fams.add(fam);st.seq=(st.seq||0)+1;st.fam[fam]=st.seq;st.used.push(pick.q);if(st.used.length>2500)st.used=st.used.slice(-2500);save();return{q:pick.q,ai:false}}
+ const pick=pickTopic(st,run,l);save();return{q:pick.q,ai:false}}
 function start(){run={o2:3,pts:0,n:0,ans:[],best:null,asked:new Set(),fams:new Set()};lastZone="Sluneční zóna";target=0;o2();
  stage.classList.add("play");card.classList.remove("out","in");
  card.innerHTML=`<div class="prog" id="prog"><i id="bar"></i></div><div class="panel" id="pn"></div>
@@ -274,7 +351,14 @@ function start(){run={o2:3,pts:0,n:0,ans:[],best:null,asked:new Set(),fams:new S
  void card.offsetWidth;card.classList.add("in");
  $("f").onsubmit=e=>{e.preventDefault();if(advT){advance();return}submit()};$("sk").onclick=()=>{if(!busy)lose("Přeskočeno",null)};
  $("a").addEventListener("input",e=>{if(advT)e.target.value=""});
- gen(1);gen(2);ask()}
+ gen(1);gen(2);
+ // iOS otevře klávesnici jen při fokusu v rámci tapnutí → fokus hned teď, karta je zatím neviditelná
+ const a=$("a");try{a.focus({preventScroll:true})}catch(e){}
+ if(RM){ask();return}
+ stage.classList.add("intro");
+ const skip=e=>{if(e.target&&e.target.closest&&e.target.closest("#f"))return;e.preventDefault();try{a.focus({preventScroll:true})}catch(_){}endIntro()};
+ document.addEventListener("pointerdown",skip,true);
+ startIntro(()=>{document.removeEventListener("pointerdown",skip,true);stage.classList.remove("intro");card.classList.remove("in");void card.offsetWidth;card.classList.add("in");ask()})}
 function ask(){busy=false;advT=null;run.n++;run.lvl=lvlFor(run.n);const p=nextPrompt(run.lvl);run.q=p.q;run.ai=p.ai;
  limit=run.n>16?Math.max(10,15-(run.n-16)*.5):({1:25,2:21,3:18,4:15})[run.lvl];left=limit;
  const pn=$("pn");pn.className="panel";pn.onclick=null;pn.innerHTML=`<div style="animation:fade .45s both"><div class="qn">#${run.n} · ${LVN[run.lvl]}</div>${(()=>{const m=run.q.match(/^(.*) \((na písmeno .+|aspoň \d+ písmen)\)$/);return m?`<div class="q">${esc(m[1])}</div><div class="tag">${esc(m[2])}</div>`:`<div class="q">${esc(run.q)}</div>`})()}</div>`;
