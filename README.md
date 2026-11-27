@@ -2,8 +2,8 @@
 
 Česká trivia hra o ponoru do hlubin. Na úvodní obrazovce si vybereš jeden ze tří režimů – loď, moře, potápěč i seskok do vody jsou pro všechny stejné:
 
-- **Vyšší, nebo nižší?** – dvě věci a otázka („Co má víc obyvatel – Brno, nebo Ostrava?“, „Co váží víc – plejtvák, nebo 10 slonů?“). Ťukneš na jednu z karet. Správně = hlouběji, chyba = −1 bublina kyslíku (máš 3). Hra je nekonečná a rozdíly mezi hodnotami se postupně zmenšují. Po odpovědi uvidíš obě skutečné hodnoty i zdroj.
-- **Odhad** – 10 otázek s číselnou odpovědí („Kolik kostí má dospělý člověk?“). Čím přesnější odhad, tím víc metrů: do ±5 % maximum (1 000 m), do ±25 % hodně, do dvojnásobku trochu. Číslo můžeš psát i jako „1,5 mil“, „2 tis.“ nebo „3k“.
+- **Vyšší, nebo nižší?** – dvě věci a otázka („Co má víc obyvatel – Brno, nebo Ostrava?“, „Co váží víc – plejtvák, nebo 10 slonů?“). Ťukneš na jednu z karet. Správně = hlouběji, chyba = −1 bublina kyslíku (máš 3). Hra je nekonečná a postupně přitvrzuje – od lehkých (velký rozdíl, známé věci) přes střední a těžké po expertní; za těžší otázku je víc metrů (×1 / ×1,5 / ×2 / ×3). Každých 6 správných v řadě dá bonusový ponor (série 6, 12, 18…). Občas padne překvapivé srovnání se zajímavostí. Po odpovědi uvidíš obě skutečné hodnoty i zdroj.
+- **Odhad** – 10 otázek s číselnou odpovědí („Kolik kostí má dospělý člověk?“). Čím přesnější odhad, tím víc metrů: do ±5 % maximum (1 000 m), 2× vedle asi polovina, 10× vedle kolem 50 m, 100× kolem 20 m, 1 000× pár metrů, dál nic. Číslo můžeš psát i jako „1,5 mil“, „2 tis.“ nebo „3k“.
 - **Krillion** – na každé zadání napiš jednu odpověď. Čím vzácnější (a správná), tím hlouběji se potápěč dostane. Chyba stojí bublinu kyslíku, odpověď „Jeden z krilionu“ ji vrací.
 
 Každý režim má vlastní rekord a otázky se neopakují ani mezi hrami.
@@ -16,7 +16,7 @@ styles.css          vzhled (tekuté sklo, HUD, karty)
 src/game.js         logika hry, vykreslování oceánu, potápěč, výběr otázek
 src/shim.js         napojení na Clauda přes /api/ai (mimo claude.ai)
 data/questions.js   témata a odpovědi režimu Krillion (209 témat s úplným výčtem odpovědí)
-data/higher-lower.js položky režimu Vyšší, nebo nižší? (803 položek, 25 veličin)
+data/higher-lower.js položky režimu Vyšší, nebo nižší? (803 položek, 25 veličin, 179 překvapivých srovnání)
 data/estimates.js   otázky režimu Odhad (373 otázek)
 api/ai.js           serverová funkce pro Vercel – volá Anthropic API s tvým klíčem
 tests/              testy rozpoznávání, výběru témat, režimů a kontrola dat (npm test)
@@ -48,7 +48,9 @@ G: [ { v: "obyv", c: "Česko", s: "ČSÚ, 2024", a: 1, min: 1.1,   // skupina po
 - hra sama skládá páry ze všech položek **stejné veličiny** (i z různých skupin), takže z 803 položek vzniknou desítky tisíc otázek,
 - `c` = kategorie, `s` = zdroj nebo poznámka (položka může mít vlastní jako třetí prvek), `a: 1` = přibližné hodnoty (ukáže se „~“),
 - `min` = nejmenší poměr hodnot, při kterém se dvojice smí zeptat – vždy aspoň 1,05 (rozdíl 5 %), u odhadů víc, aby nevznikaly sporné otázky,
-- `y: 1` = hodnota je rok vzniku a porovnává se stáří („Co je starší – iPhone, nebo YouTube?“).
+- `y: 1` = hodnota je rok vzniku a porovnává se stáří („Co je starší – iPhone, nebo YouTube?“),
+- `f` = známost položek 1–3 (1 = zná každý), `k` / `h` = seznamy výjimek (známější / méně známé). Z poměru hodnot a známosti hra počítá obtížnost otázky,
+- `X` = překvapivá srovnání: `["Co je starší?", "let", ["Oxfordská univerzita", 1096], ["Říše Aztéků", 1325], "Zajímavost v jedné větě.", {y: 1}]`.
 
 ### Formát otázek „Odhad“ (`data/estimates.js`)
 

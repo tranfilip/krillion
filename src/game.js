@@ -107,8 +107,16 @@ function tooSimilar(q,list){const a=new Set(qWords(q));if(!a.size)return true;
 /* ---------- režimy: čísla, hodnocení a výběr (testuje tests/modes.test.js) ---------- */
 const HLD=window.KRILLION_HL||{V:{},G:[]},ESTD=window.KRILLION_EST||[],MKEY="krillion-rezimy1",YNOW=new Date().getFullYear();
 // položky „Vyšší, nebo nižší?“: veličina (otázka + jednotka) a kategorie se dědí ze skupiny; u y:1 je hodnota rok vzniku → stáří
-const HLI=[];for(const g of HLD.G||[])for(const[n,val,note]of g.i)HLI.push({id:g.v+":"+n,v:g.v,c:g.c,n,val:g.y?YNOW-val:val,lv:Math.log(g.y?YNOW-val:val),yr:g.y?val:null,note:note||g.s||"",a:!!g.a,min:Math.max(1.05,g.min||1.05)});
+// známost f: 1 = zná každý, 3 = méně známé (skupina f, výjimky v k → 1 a h → 3)
+const famOf=(g,n)=>g.k&&g.k.includes(n)?1:g.h&&g.h.includes(n)?3:g.f||2;
+const HLI=[];for(const g of HLD.G||[])for(const[n,val,note]of g.i)HLI.push({id:g.v+":"+n,v:g.v,c:g.c,n,val:g.y?YNOW-val:val,lv:Math.log(g.y?YNOW-val:val),yr:g.y?val:null,note:note||g.s||"",a:!!g.a,min:Math.max(1.05,g.min||1.05),f:famOf(g,n)});
 const HLV=new Map();for(const x of HLI){if(!HLV.has(x.v))HLV.set(x.v,[]);HLV.get(x.v).push(x)}
+/* obtížnost otázky 1–4 (Lehká–Expert): podle poměru hodnot (velký rozdíl = lehčí) a známosti méně známé položky */
+const ratioLvl=lr=>lr>=Math.log(3)?1:lr>=Math.log(1.8)?2:lr>=Math.log(1.3)?3:4;
+const pairLevel=(lr,f)=>Math.max(1,Math.min(4,Math.round(ratioLvl(lr)+(f-1)*.75)));
+// překvapivá srovnání: pevné páry se zajímavostí, obtížnost o stupeň vyšší (intuice tu klame), nejméně Střední
+const HLX=(HLD.X||[]).map(([q,u,A,B,fact,o],i)=>{o=o||{};const mk=([n,val])=>{const v=o.y?YNOW-val:val;return{id:"x"+i+":"+n,v:"x"+i,c:"Překvapení",n,val:v,lv:Math.log(v),yr:o.y?val:null,note:"",a:!!o.a,min:1.05,f:1,u}};
+ const a=mk(A),b=mk(B),lr=Math.abs(a.lv-b.lv);return{key:q+"|"+A[0]+"|"+B[0],q,a,b,fact,lr,lvl:Math.max(2,Math.min(4,ratioLvl(lr)+1))}});
 const ESTQ=ESTD.map(([c,q,v,u,note])=>({c,q,v,u:u||"",note:note||""}));
 /* číslo od hráče: „1 500“, „1,5 mil“, „2 tis.“, „3k“, „1.500.000“, „2,5 miliardy“, „206 kostí“ */
 const MULTW=[[/^(bilion|bil)/,1e12],[/^(miliard|mld|md)/,1e9],[/^(milion|mil|mio)/,1e6],[/^(tis|k$)/,1e3]];
@@ -122,12 +130,14 @@ function parseNum(s){let t=String(s??"").toLowerCase().replace(/[\s  '’_]/g
  rest=rest.replace(/^[.,]+/,"");const e=rest.match(/^e(\d{1,2})/);
  if(e)v*=10**+e[1];else if(rest){const w=MULTW.find(([re])=>re.test(rest));if(w)v*=w[1];else if(!m)return NaN}
  return v>0&&isFinite(v)?v:NaN}
-/* hodnocení odhadu podle poměru tipu a skutečnosti (logaritmicky, souměrně: 2× víc = 2× míň):
-   do ±5 % maximum 1 000 m, do ±25 % 800–450 m, do 2× 400–100 m, dál nic */
-const ET=[1/.95,1/.75,2];
-function estScore(g,t){if(!(g>0)||!(t>0))return{m:0,k:4,q:Infinity};const q=Math.max(g/t,t/g),L=Math.log(q),l=ET.map(Math.log),e=1e-9;let m=0,k=3;
- if(L<=l[0]+e){m=1000;k=0}else if(L<=l[1]+e){m=800-350*(L-l[0])/(l[1]-l[0]);k=1}else if(L<=l[2]+e){m=400-300*(L-l[1])/(l[2]-l[1]);k=2}
- return{m:Math.round(m/10)*10,k,q}}
+/* hodnocení odhadu podle poměru r = max(tip/skutečnost, skutečnost/tip): plynulá křivka, lineární v logaritmech
+   mezi body r ≤ 1,05 → 1 000 m, 2 → 500, 10 → 50, 100 → 20, 1 000 → 5, víc než 1 000× → 0 */
+const EP=[[1.05,1000],[2,500],[10,50],[100,20],[1000,5]].map(([r,m])=>[Math.log(r),Math.log(m)]);
+const EK=[1.05,1.25,2,10].map(Math.log); // nadpis: Přesně! / Skoro! / Blízko / Daleko / Úplně vedle
+function estScore(g,t){if(!(g>0)||!(t>0))return{m:0,k:5,q:Infinity};const q=Math.max(g/t,t/g),L=Math.log(q),e=1e-9;let m;
+ if(L<=EP[0][0]+e)m=1000;else if(L>EP[EP.length-1][0]+e)m=0;
+ else{let i=0;while(L>EP[i+1][0]+e)i++;const[x0,y0]=EP[i],[x1,y1]=EP[i+1];m=Math.exp(y0+(y1-y0)*(L-x0)/(x1-x0))}
+ m=m>=100?Math.round(m/10)*10:Math.round(m);let k=0;while(k<EK.length&&L>EK[k]+e)k++;return{m,k,q}}
 const fmtR=x=>x.toLocaleString("cs-CZ",{maximumFractionDigits:x<10?1:0});
 function estDiff(g,t){if(!(g>0))return"bez odpovědi";const r=g/t;if(Math.abs(r-1)<.005)return"přesně";
  if(r>=1000||r<=.001)return`přes 1 000× ${r>1?"víc":"míň"}`;if(r>=2)return`${fmtR(r)}× víc`;if(r<=.5)return`${fmtR(1/r)}× míň`;const p=Math.max(1,Math.round(Math.abs(r-1)*100));return`o ${p} % ${r>1?"víc":"míň"}`}
@@ -141,28 +151,37 @@ const plLet=n=>n===1?"rok":Number.isInteger(n)&&n>=2&&n<=4?"roky":Number.isInteg
 function fmtU(v,u){if(u==="kg"&&v<1)return v<.001?fmtNum(v*1e6)+" mg":fmtNum(v*1000)+" g";if(u==="m"&&v>=1e5)return fmtNum(v/1000)+" km";
  if(u==="let")u=plLet(v);return fmtNum(v)+(u?" "+u:"")}
 const yrTxt=y=>y<0?`${-y} př. n. l.`:String(y);
-function fmtHL(x,val=x.val){const u=(HLD.V[x.v]||[])[1]||"";return(x.a?"~":"")+fmtU(val,u)+(x.yr!==null?` (${yrTxt(x.yr)})`:"")}
+function fmtHL(x,val=x.val){const u=x.u!==undefined?x.u:(HLD.V[x.v]||[])[1]||"";return(x.a?"~":"")+fmtU(val,u)+(x.yr!==null?` (${yrTxt(x.yr)})`:"")}
 /* paměť režimů (rekordy, použité páry a otázky) – zvlášť od Krillion režimu, přežije reload */
 function loadModes(ls){const s={hl:{best:0,runs:0,pairs:[],it:{}},est:{best:0,runs:0,cnt:{},last:{},seq:0}},obj=x=>x&&typeof x==="object"&&!Array.isArray(x);
  let r=null;try{r=JSON.parse(ls.getItem(MKEY)||"null")}catch(e){}
  if(obj(r))for(const k of["hl","est"])if(obj(r[k]))Object.assign(s[k],r[k]);
- const h=s.hl,e=s.est;h.best=+h.best||0;h.runs=+h.runs||0;h.pairs=Array.isArray(h.pairs)?h.pairs.filter(x=>typeof x==="string"):[];if(!obj(h.it))h.it={};
+ const h=s.hl,e=s.est;h.best=+h.best||0;h.runs=+h.runs||0;h.pairs=Array.isArray(h.pairs)?h.pairs.filter(x=>typeof x==="string"):[];if(!obj(h.it))h.it={};if(!obj(h.sx))h.sx={};
  e.best=+e.best||0;e.runs=+e.runs||0;e.seq=+e.seq||0;if(!obj(e.cnt))e.cnt={};if(!obj(e.last))e.last={};return s}
 function saveModes(ls,s){try{ls.setItem(MKEY,JSON.stringify(s));return true}catch(e){return false}}
-/* „Vyšší, nebo nižší?“: cílový poměr hodnot se s každou otázkou zmenšuje (≈4,3× → 1,1×), takže hra přitvrzuje.
-   Pár: stejná veličina, poměr ≥ 1,05 (a ≥ min skupiny), žádná položka dvakrát za ponor, pár se mezi hrami neopakuje,
-   méně použité položky mají přednost a veličiny se střídají. */
-const hlTarget=n=>1.06+3.2*Math.exp(-(n-1)/7);
+/* „Vyšší, nebo nižší?“: cílová obtížnost roste s počtem otázek (1–4 Lehká, 5–9 Střední, 10–15 Těžká, pak Expert).
+   Pár: stejná veličina, poměr ≥ 1,05 (a ≥ min skupiny), co nejblíž cílové obtížnosti, žádná položka dvakrát za ponor,
+   pár se mezi hrami neopakuje, méně použité položky mají přednost a veličiny se střídají. Občas padne překvapivé srovnání. */
+const hlLvl=n=>n<=4?1:n<=9?2:n<=15?3:4;
+const LVR={1:4,2:2.2,3:1.5,4:1.15},HL_MULT={1:1,2:1.5,3:2,4:3};
+const hlPoints=l=>100*HL_MULT[l];
+const streakBonus=s=>s>0&&s%6===0?300*s/6:0; // série 6 → +300 m, 12 → +600 m, 18 → +900 m…
 const hlKey=(a,b)=>a.id<b.id?a.id+"|"+b.id:b.id+"|"+a.id;
-const hlPoints=r=>Math.round((50+150*Math.max(0,Math.min(1,1-Math.log(r)/Math.log(4))))/10)*10;
-function pickPair(ms,run,rnd=Math.random){const h=ms.hl,R=Math.log(hlTarget(run.n||1));
+function pickSurprise(h,run,L,rnd){if(!HLX.length)return null;const cnt=x=>h.sx[x.key]||0,c0=Math.min(...HLX.map(cnt));
+ let pool=HLX.filter(x=>cnt(x)===c0&&!run.items.has(x.a.id));if(!pool.length)return null;
+ const d0=Math.min(...pool.map(x=>Math.abs(x.lvl-L)));pool=pool.filter(x=>Math.abs(x.lvl-L)===d0);
+ const x=pool[Math.floor(rnd()*pool.length)];h.sx[x.key]=c0+1;run.items.add(x.a.id);run.lastXn=run.n;
+ return{v:x.a.v,a:x.a,b:x.b,r:Math.exp(x.lr),lvl:x.lvl,q:x.q,fact:x.fact,side:rnd()<.5?[x.a,x.b]:[x.b,x.a]}}
+function pickPair(ms,run,rnd=Math.random){const h=ms.hl;if(!h.sx)h.sx={};const L=hlLvl(run.n||1),T=Math.log(LVR[L]);
+ // překvapení: od 3. otázky, asi každá třetí, nikdy dvě hned po sobě
+ if(run.n>=3&&(run.n-(run.lastXn||-9))>=2&&rnd()<.34){const x=pickSurprise(h,run,L,rnd);if(x)return x}
  for(let pass=0;pass<2;pass++){const used=new Set(h.pairs);let best=null,bs=Infinity;
   const order=[...HLV.keys()].map(v=>{const w=Math.sqrt(HLV.get(v).length)/(1+3*(run.vc[v]||0))*(run.lastV.includes(v)?.01:1);return{v,k:Math.pow(rnd(),1/w)}}).sort((a,b)=>b.k-a.k);
-  order.forEach(({v},rank)=>{const L=HLV.get(v).filter(x=>!run.items.has(x.id)),cnt=x=>h.it[x.id]||0,c0=Math.min(...L.map(cnt));
-   const base=rank*.18,ca=L.map(x=>.25*(cnt(x)-c0));if(base>=bs)return;
-   for(let i=0;i<L.length;i++){const a=L[i];if(!(a.val>0))continue;for(let j=i+1;j<L.length;j++){const b=L[j];if(!(b.val>0))continue;const lr=Math.abs(a.lv-b.lv);
-    if(lr<Math.log(Math.max(a.min,b.min))-1e-12)continue;
-    const s=Math.abs(lr-R)+ca[i]+ca[j]+(a.c!==b.c?.12:0)+base+rnd()*.1;if(s<bs&&!used.has(hlKey(a,b))){bs=s;best={v,a,b,r:Math.exp(lr)}}}}});
+  order.forEach(({v},rank)=>{const P=HLV.get(v).filter(x=>!run.items.has(x.id)),cnt=x=>h.it[x.id]||0,c0=Math.min(...P.map(cnt));
+   const base=rank*.18,ca=P.map(x=>.25*(cnt(x)-c0));if(base>=bs)return;
+   for(let i=0;i<P.length;i++){const a=P[i];if(!(a.val>0))continue;for(let j=i+1;j<P.length;j++){const b=P[j];if(!(b.val>0))continue;const lr=Math.abs(a.lv-b.lv);
+    if(lr<Math.log(Math.max(a.min,b.min))-1e-12)continue;const d=pairLevel(lr,Math.max(a.f,b.f));
+    const s=2.5*Math.abs(d-L)+.6*Math.abs(lr-T)+ca[i]+ca[j]+(a.c!==b.c?.12:0)+base+rnd()*.15;if(s<bs&&!used.has(hlKey(a,b))){bs=s;best={v,a,b,r:Math.exp(lr),lvl:d}}}}});
   if(best){const{v,a,b}=best;h.pairs.push(hlKey(a,b));if(h.pairs.length>4000)h.pairs=h.pairs.slice(-4000);h.it[a.id]=(h.it[a.id]||0)+1;h.it[b.id]=(h.it[b.id]||0)+1;
    run.items.add(a.id);run.items.add(b.id);run.vc[v]=(run.vc[v]||0)+1;run.lastV=[v,...run.lastV].slice(0,2);best.side=rnd()<.5?[a,b]:[b,a];return best}
   h.pairs=[]} // všechny páry už padly → paměť párů od začátku
@@ -498,10 +517,12 @@ function burst(c,n){if(RM)return;const x=card.offsetLeft+card.offsetWidth/2,y=vT
 let run=null,timer=null,left=25,limit=25,busy=false,lastZone="Sluneční zóna",advT=null;
 const ARROW='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>';
 const LVN={1:"Lehká",2:"Střední",3:"Těžká",4:"Expert"};
+const FLAME='<svg viewBox="0 0 16 20" aria-hidden="true"><path fill="currentColor" d="M8 0c1 3.2 5.6 5.6 5.6 11A5.6 5.6 0 0 1 2.4 11c0-2.6 1.3-4.3 2.6-5.6.2 1.8 1 3 2.2 3.4C6.4 5.8 7.3 2.6 8 0z"/></svg>';
 const lvlFor=n=>n<=3?1:n<=7?2:n<=12?3:4;
 function swap(html,after){card.classList.add("out");setTimeout(()=>{stage.scrollTop=0;card.innerHTML=html;card.classList.remove("out","in");void card.offsetWidth;card.classList.add("in");after&&after()},170)}
 function o2(effect){const e=$("o2");if(run&&run.mode==="est"){e.classList.remove("low");e.innerHTML=`<span class="qc">${Math.max(1,Math.min(run.n,EST_N))}<small> / ${EST_N}</small></span>`;return}
- const n=run?run.o2:3;e.innerHTML=[0,1,2].map(i=>`<i class="${i>=n?"off":""}${effect&&effect.i===i?" "+effect.c:""}"></i>`).join("");e.classList.toggle("low",n===1)}
+ const n=run?run.o2:3;e.innerHTML=[0,1,2].map(i=>`<i class="${i>=n?"off":""}${effect&&effect.i===i?" "+effect.c:""}"></i>`).join("");e.classList.toggle("low",n===1);
+ if(run&&run.mode==="hl"){const k=run.streak||0;e.insertAdjacentHTML("beforeend",`<span class="streak${k?"":" off"}${effect&&effect.hot?" hot":""}" aria-label="Série ${k}">${FLAME}<b>${k}</b></span>`)}}
 function toast(s){const e=$("toast");e.textContent=s;e.classList.add("on");clearTimeout(e._t);e._t=setTimeout(()=>e.classList.remove("on"),2600)}
 function setDepth(m,slow){ease=slow?2600:1000;if(m>target){kick=1;const d=$("dm");d.classList.add("bump");setTimeout(()=>d.classList.remove("bump"),350)}target=m;const z=zoneOf(m);if(z!==lastZone&&m>0){lastZone=z;setTimeout(()=>toast(z),1000)}}
 /* úvodní obrazovka: výběr režimu (loď, moře i seskok jsou pro všechny režimy stejné) */
@@ -583,14 +604,16 @@ function ouch(){hurt=1;const f=$("flash");f.classList.add("on");setTimeout(()=>f
 function share(btn,txt){btn.onclick=async()=>{try{await navigator.clipboard.writeText(txt);toast("Zkopírováno")}catch(e){toast("Kopírování nejde")}}}
 function ascendLater(){const r0=run;setTimeout(()=>{if(run===r0&&S.m==="dive")beginAscent()},700)}
 const endRow=`<div class="row"><button class="btn" id="nx">Ponořit se znovu</button><button class="btn g" id="cp">Sdílet</button></div><button class="skip" id="md" type="button">Jiný režim</button>`;
+const LVC={1:"#8ef0c6",2:"#63b6ff",3:"#c9a8ff",4:"#ffd36e"};
 const pct=r=>r<2?`${Math.max(5,Math.round((r-1)*100))} %`:`${fmtR(r)}×`;
 
 /* ---------- režim „Vyšší, nebo nižší?“ ---------- */
-function startHL(){run={mode:"hl",o2:3,pts:0,n:0,ok:0,res:[],items:new Set(),vc:{},lastV:[]};
+function startHL(){run={mode:"hl",o2:3,pts:0,n:0,ok:0,res:[],items:new Set(),vc:{},lastV:[],streak:0,bestStreak:0};
  launch(`<div class="prog" id="prog"><i id="bar"></i></div><div class="panel hlq" id="pn"></div><div class="duel" id="duel"></div><div class="hint hln" id="h"></div>`,null,askHL)}
 function askHL(){busy=false;advT=null;card.onclick=null;run.n++;const p=pickPair(ms,run);saveM();if(!p){endHL();return}run.p=p;
- const[a,b]=p.side,V=HLD.V[p.v]||["Čeho je víc?",""],cat=a.c===b.c?a.c:a.c+" × "+b.c;
- const pn=$("pn");pn.className="panel hlq";pn.innerHTML=`<div style="animation:fade .45s both"><div class="qn">#${run.n} · ${esc(cat)}</div><div class="q">${esc(V[0])}</div></div>`;
+ const[a,b]=p.side,V=p.q?[p.q]:HLD.V[p.v]||["Čeho je víc?",""],cat=a.c===b.c?a.c:a.c+" × "+b.c;
+ const L=hlLvl(run.n);if(run.n>1&&L!==hlLvl(run.n-1))toast(`Obtížnost: ${LVN[L]} · ×${fmtR(HL_MULT[L])} hloubky`);
+ const pn=$("pn");pn.className="panel hlq";pn.innerHTML=`<div style="animation:fade .45s both"><div class="qn">#${run.n} · <span class="lvl l${p.lvl}">${LVN[p.lvl]}</span> · ${esc(cat)}</div><div class="q">${esc(V[0])}</div></div>`;
  $("duel").innerHTML=[a,b].map((x,i)=>`<button class="opt" type="button" id="o${i}" style="--i:${i}"><b>${esc(x.n)}</b><span class="val" id="v${i}"></span></button>${i?"":'<span class="vs">nebo</span>'}`).join("");
  $("o0").onclick=()=>pickHL(0);$("o1").onclick=()=>pickHL(1);$("h").textContent="";
  tick(HL_T,()=>pickHL(-1))}
@@ -600,22 +623,27 @@ function countUp(el,x){const D=RM?0:750,t0=performance.now(),round=Number.isInte
 function pickHL(i){if(busy||!run||run.mode!=="hl")return;busy=true;clearInterval(timer);
  const{side:[a,b],r}=run.p,w=a.val>b.val?0:1,ok=i===w,W=[a,b][w];
  [a,b].forEach((x,k)=>{const o=$("o"+k);o.disabled=true;o.classList.add(k===w?"ok":k===i?"bad":"dim");countUp($("v"+k),x)});
- let head;
- if(ok){const m=hlPoints(r);run.pts+=m;run.ok++;setDepth(run.pts);burst("#8ef0c6",10+Math.round(20/r));
-  head=`<div class="tier" style="color:#8ef0c6;text-shadow:0 0 34px #8ef0c688">Správně</div><div class="sub">rozdíl ${pct(r)} · <b>+${fmt(m)}</b></div>`}
- else{run.o2--;o2({i:run.o2,c:"pop"});ouch();const d=$("duel");d.classList.remove("shake");void d.offsetWidth;d.classList.add("shake");
+ const lv=run.p.lvl,mult=HL_MULT[lv];let head;
+ if(ok){const m=hlPoints(lv);run.pts+=m;run.ok++;run.streak++;run.bestStreak=Math.max(run.bestStreak,run.streak);const bonus=streakBonus(run.streak);run.pts+=bonus;setDepth(run.pts);
+  const line=`${LVN[lv]} ×${fmtR(mult)} · <b>+${fmt(m)}</b> · rozdíl ${pct(r)}`;
+  if(bonus){streakFx();o2({hot:1});head=`<div class="tier" style="color:#ffd36e;text-shadow:0 0 40px #ffd36e">Série ${run.streak}! +${fmt(bonus)}</div><div class="sub">Správně · ${line}</div>`}
+  else{o2();burst("#8ef0c6",10+lv*6);head=`<div class="tier" style="color:#8ef0c6;text-shadow:0 0 34px #8ef0c688">Správně</div><div class="sub">${line}</div>`}}
+ else{run.streak=0;run.o2--;o2({i:run.o2,c:"pop"});ouch();const d=$("duel");d.classList.remove("shake");void d.offsetWidth;d.classList.add("shake");
   head=`<div class="tier" style="color:#ffb0a5;text-shadow:0 0 30px #ff7a6a77">${i<0?"Došel čas":"−1 kyslík"}</div><div class="sub">${i<0?"−1 kyslík · ":""}víc má <b>${esc(W.n)}</b> · rozdíl ${pct(r)}</div>`}
- run.res.push({ok,r});
+ run.res.push({ok,r,lv});
  const pn=$("pn");pn.className="panel hlq res";pn.innerHTML=`<div>${head}</div>`;
- const notes=a.note===b.note?[a.note]:[a.note&&`${a.n}: ${a.note}`,b.note&&`${b.n}: ${b.note}`];$("h").innerHTML=notes.filter(Boolean).map(n=>`<div class="src">${esc(n)}</div>`).join("");
+ const notes=run.p.fact?[]:a.note===b.note?[a.note]:[a.note&&`${a.n}: ${a.note}`,b.note&&`${b.n}: ${b.note}`];
+ $("h").innerHTML=(run.p.fact?`<div class="fact"><b>Zajímavost:</b> ${esc(run.p.fact)}</div>`:"")+notes.filter(Boolean).map(n=>`<div class="src">${esc(n)}</div>`).join("");
  run.tapAt=performance.now()+450;card.onclick=()=>{if(advT&&performance.now()>run.tapAt)advHL()};
- clearTimeout(advT);advT=setTimeout(advHL,ok?2500:3000)}
+ clearTimeout(advT);advT=setTimeout(advHL,(ok?2500:3000)+(run.p.fact?1800:0))}
+function streakFx(){const f=$("flash");f.classList.add("gold","on");setTimeout(()=>f.classList.remove("on"),90);setTimeout(()=>f.classList.remove("gold"),900);
+ burst("#ffd36e",MOBILE?50:80);ease=450;let k=0;const t=setInterval(()=>{kick=1;if(++k>8)clearInterval(t)},150);try{navigator.vibrate&&navigator.vibrate([30,40,30])}catch(e){}}
 function advHL(){if(!advT)return;clearTimeout(advT);advT=null;card.onclick=null;if(run.o2<=0)endHL();else askHL()}
 function endHL(){clearInterval(timer);card.onclick=null;stage.classList.remove("play");const h=ms.hl,m=run.pts,rec=m>h.best;if(rec)h.best=m;h.runs++;saveM();
  const z=zoneOf(m),okR=run.res.filter(x=>x.ok).map(x=>x.r),tight=okR.length?Math.min(...okR):0,rs=run.res.slice(-40);
  swap(`<div class="end"><div class="qn">Vyšší, nebo nižší? · došel kyslík</div><div class="big">${fmt(m)}</div><div class="zone">${esc(z)}${rec&&m>0?" · nový rekord":""}</div>
- <div class="tcap">Odpovědi (✓ správně, ✕ chyba)</div><div class="chips">${rs.map((x,i)=>`<span style="--i:${i};${x.ok?"color:#8ef0c6;box-shadow:inset 0 0 0 1px #8ef0c666":"color:rgba(255,255,255,.35)"}">${x.ok?"✓":"✕"}</span>`).join("")}</div>
- <div class="meta"><span>Správně <b>${run.ok}</b></span>${tight?`<span>Nejtěsnější rozdíl <b>${pct(tight)}</b></span>`:""}<span>Rekord <b>${fmt(h.best)}</b></span></div>${endRow}</div>`,()=>{
+ <div class="tcap">Odpovědi (barva = obtížnost: lehká, střední, těžká, expert; ✕ = chyba)</div><div class="chips">${rs.map((x,i)=>`<span style="--i:${i};${x.ok?`color:${LVC[x.lv]};box-shadow:inset 0 0 0 1px ${LVC[x.lv]}66`:"color:rgba(255,255,255,.35)"}" title="${LVN[x.lv]}">${x.ok?"✓":"✕"}</span>`).join("")}</div>
+ <div class="meta"><span>Správně <b>${run.ok}</b></span><span>Nejdelší série <b>${run.bestStreak}</b></span>${tight?`<span>Nejtěsnější rozdíl <b>${pct(tight)}</b></span>`:""}<span>Rekord <b>${fmt(h.best)}</b></span></div>${endRow}</div>`,()=>{
   if(rec&&m>0)burst("#ffd36e",70);$("nx").onclick=startHL;$("md").onclick=home;
   share($("cp"),`Krillion · Vyšší, nebo nižší? · ${fmt(m)} · správně ${run.ok}\n${run.res.map(x=>x.ok?"🟩":"⬛").join("")}`)});
  ascendLater()}
@@ -624,7 +652,7 @@ addEventListener("keydown",e=>{if(!run||run.mode!=="hl"||!stage.classList.contai
  const i={ArrowLeft:0,"1":0,ArrowRight:1,"2":1}[e.key];if(i!==undefined&&!busy){e.preventDefault();pickHL(i)}});
 
 /* ---------- režim „Odhad“ ---------- */
-const ESTT=[{n:"Přesně!",c:"#ffd36e"},{n:"Skvělý odhad",c:"#8ef0c6"},{n:"Blízko",c:"#63b6ff"},{n:"Vedle",c:"#ffb0a5"},{n:"Bez odpovědi",c:"#ffb0a5"}];
+const ESTT=[{n:"Přesně!",c:"#ffd36e"},{n:"Skoro!",c:"#8ef0c6"},{n:"Blízko",c:"#63b6ff"},{n:"Daleko",c:"#c9a8ff"},{n:"Úplně vedle",c:"#ffb0a5"},{n:"Bez odpovědi",c:"#ffb0a5"}];
 const SHORTU=new Set(["m","km","cm","kg","g","mg","t","l","%","°C","km²","m²","ha","km/h","s","kcal","USD","€","SHU","BTC"]);
 const withU=(v,u)=>fmtNum(v)+(u?" "+u:"");
 // tip = číslo z inputu × násobitel z tlačítek tis./mil./mld. (na mobilu numerická klávesnice písmena nemá)
@@ -651,7 +679,7 @@ function askEst(){busy=false;advT=null;run.n++;run.mul=1;o2();const q=pickEst(ms
 function submitEst(timeout){const a=$("a");if(!a||busy||!run||run.mode!=="est")return;const g=estVal();
  if(!timeout&&!(g>0)){$("h").textContent="Napiš kladné číslo, třeba 1 500, 2,5 tis. nebo 3 mil.";const f=$("f");f.classList.remove("shake");void f.offsetWidth;f.classList.add("shake");try{a.focus({preventScroll:true})}catch(e){}return}
  busy=true;clearInterval(timer);const q=run.q,s=estScore(g,q.v),T=ESTT[s.k];run.pts+=s.m;run.res.push({q,g,s});
- if(s.m){setDepth(run.pts);burst(T.c,6+(3-s.k)*12)}else{ouch();const f=$("f");f.classList.remove("shake");void f.offsetWidth;f.classList.add("shake")}
+ if(s.m){setDepth(run.pts);burst(T.c,Math.max(4,6+(3-s.k)*12))}else{ouch();const f=$("f");f.classList.remove("shake");void f.offsetWidth;f.classList.add("shake")}
  const pn=$("pn");pn.className="panel res";pn.innerHTML=`<div><div class="tier" style="color:${T.c};text-shadow:0 0 30px ${T.c}77">${T.n}</div>
  <div class="sub">Skutečnost <b>${esc(withU(q.v,q.u))}</b></div>
  <div class="sub">${g>0?`Tvůj tip ${esc(fmtNum(g))} · ${esc(estDiff(g,q.v))}`:"Došel čas"} · <b>+${fmt(s.m)}</b></div>${q.note?`<div class="src">${esc(q.note)}</div>`:""}</div>`;
@@ -665,7 +693,7 @@ function endEst(){clearInterval(timer);const a=$("a");a&&a.blur();card.onclick=n
  <div class="elist">${run.res.map((x,i)=>{const T=ESTT[x.s.k];return`<div class="er" style="--i:${i}"><span class="eq">${i+1}. ${esc(x.q.q)}</span><b class="em" style="color:${T.c}">+${fmt(x.s.m)}</b><span class="ev">tip <b>${x.g>0?esc(fmtNum(x.g)):"—"}</b> · skutečnost <b>${esc(withU(x.q.v,x.q.u))}</b>${x.g>0?" · "+esc(estDiff(x.g,x.q.v)):""}</span></div>`}).join("")}</div>
  <div class="meta"><span>Přesně <b>${ex}</b></span><span>Do ±25 % <b>${good}</b></span><span>Rekord <b>${fmt(e.best)}</b></span></div>${endRow}</div>`,()=>{
   if(rec&&m>0)burst("#ffd36e",70);$("nx").onclick=startEst;$("md").onclick=home;
-  share($("cp"),`Krillion · Odhad · ${fmt(m)} · ${z}\n${run.res.map(x=>["🟨","🟩","🟦","⬛","⬛"][x.s.k]).join("")}`)});
+  share($("cp"),`Krillion · Odhad · ${fmt(m)} · ${z}\n${run.res.map(x=>["🟨","🟩","🟦","🟪","⬛","⬛"][x.s.k]).join("")}`)});
  ascendLater()}
 o2();home();
 }
