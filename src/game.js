@@ -10,7 +10,9 @@ const fmt=n=>Math.round(n).toLocaleString("cs-CZ")+" m";
 /* ---------- nastavení: animace, vibrace, zvuk (localStorage „krillion-nastaveni“, odděleně od rekordů) ---------- */
 const SKEY="krillion-nastaveni";
 const SET=(()=>{const s={anim:true,vib:true,snd:false,seen:{}};try{const r=JSON.parse(localStorage.getItem(SKEY)||"null");if(r&&typeof r==="object"){for(const k of["anim","vib","snd"])if(typeof r[k]==="boolean")s[k]=r[k];if(r.seen&&typeof r.seen==="object"&&!Array.isArray(r.seen))s.seen=r.seen}}catch(e){}return s})();
-const saveSet=()=>{try{localStorage.setItem(SKEY,JSON.stringify(SET))}catch(e){}};
+// zvuk jde přepnout i reproduktorem z src/audio.js – stav „snd“ se bere odtud, ať ho uložení nastavení nepřepíše starou hodnotou
+const syncSnd=()=>{const x=window.KRILLION_SFX;if(x&&typeof x.on==="boolean")SET.snd=x.on};
+const saveSet=()=>{syncSnd();try{localStorage.setItem(SKEY,JSON.stringify(SET))}catch(e){}};
 const norm=s=>String(s).toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^a-z0-9 ]/g," ").replace(/\s+/g," ").trim();
 const BASE=P.map(([lvl,q,a])=>({lvl,q,list:a.split(",").map(x=>{const v=x.split("|");return{show:v[0],vars:v,keys:v.map(norm)}})}));
 /* ---------- odvozené otázky: na písmeno, podle délky ---------- */
@@ -824,7 +826,7 @@ function helpCard(k,back){const[t,c,P,note]=HELP[k];
  swap(`<div class="help" style="--c:${c}"><div class="qn">Jak se hraje</div><h2>${t}</h2><ol>${P.map((x,i)=>`<li style="--i:${i}"><i aria-hidden="true">${i+1}</i><span>${x}</span></li>`).join("")}</ol><p class="hnote">${note}</p>
  <div class="row"><button class="btn" id="hgo" type="button">Ponořit se</button></div><button class="skip" id="hbk" type="button">${back?"Zpět do nastavení":"Jiný režim"}</button></div>`,()=>{
   $("hgo").onclick=()=>{SET.seen[k]=1;saveSet();MODE_START[k]()};$("hbk").onclick=back||home;if(!MOBILE)try{$("hgo").focus({preventScroll:true})}catch(e){}})}
-function settings(){const sfx=window.KRILLION_SFX,row=(k,t,d)=>`<button class="sw" type="button" role="switch" aria-checked="${SET[k]}" data-k="${k}"><span><b>${t}</b><small>${d}</small></span><i aria-hidden="true"></i></button>`;
+function settings(){syncSnd();const sfx=window.KRILLION_SFX,row=(k,t,d)=>`<button class="sw" type="button" role="switch" aria-checked="${SET[k]}" data-k="${k}"><span><b>${t}</b><small>${d}</small></span><i aria-hidden="true"></i></button>`;
  swap(`<div class="setc"><div class="qn">Krillion</div><h2>Nastavení</h2><div class="sets">
  ${row("anim","Animace","Seskok z lodi, jiskry a přechody karet. Vypnuté = klidnější hra.")}
  ${CANBUZZ?row("vib","Vibrace","Jemné zavibrování po odpovědi."):""}
@@ -833,7 +835,7 @@ function settings(){const sfx=window.KRILLION_SFX,row=(k,t,d)=>`<button class="s
  <div class="hlp"><span>Jak se hraje</span>${Object.keys(HELP).map(k=>`<button type="button" class="chip" data-h="${k}">${HELP[k][0]}</button>`).join("")}</div>
  <p class="sstat">Odehráno her: vyšší/nižší <b>${ms.hl.runs}</b> · odhad <b>${ms.est.runs}</b> · Krillion <b>${st.runs}</b></p>
  <div class="row"><button class="btn" id="bk" type="button">Hotovo</button></div></div>`,()=>{
-  for(const b of card.querySelectorAll(".sw"))b.onclick=()=>{const k=b.dataset.k;SET[k]=!SET[k];saveSet();b.setAttribute("aria-checked",String(SET[k]));if(k==="anim")applyMotion();if(k==="vib"&&SET.vib)buzz(25);if(k==="snd"&&sfx&&sfx.set)sfx.set(SET.snd)};
+  for(const b of card.querySelectorAll(".sw"))b.onclick=()=>{const k=b.dataset.k;SET[k]=!SET[k];if(k==="snd"&&sfx&&sfx.set)sfx.set(SET.snd);saveSet();b.setAttribute("aria-checked",String(SET[k]));if(k==="anim")applyMotion();if(k==="vib"&&SET.vib)buzz(25)};
   for(const b of card.querySelectorAll("[data-h]"))b.onclick=()=>helpCard(b.dataset.h,settings);
   $("bk").onclick=home})}
 // adresa hry do sdíleného textu (jen veřejná, ne localhost); bez ?fps a podobných parametrů
@@ -950,4 +952,16 @@ function endEst(){stopT();const a=$("a");a&&a.blur();card.onclick=null;stage.cla
   body:`<div class="elist">${r0.res.map((x,i)=>{const T=ESTT[x.s.k];return`<div class="er" style="--i:${i}"><span class="eq">${i+1}. ${esc(x.q.q)}</span><b class="em" style="color:${T.c}">+${fmt(x.s.m)}</b><span class="ev">tip <b>${x.g>0?esc(fmtNum(x.g)):"—"}</b> · skutečnost <b>${esc(withU(x.q.v,x.q.u))}</b>${x.g>0?" · "+esc(estDiff(x.g,x.q.v)):""}</span></div>`}).join("")}</div>`,
   share:(z,rec)=>`🤿 Krillion · Odhad\n🌊 ${fmt(m)} · ${z}${rec?" · 🏆 nový rekord":""}\n🎯 přesně ${ex} · do ±25 % ${good}\n${r0.res.map(x=>["🟨","🟩","🟦","🟪","⬛","⬛"][x.s.k]).join("")}`})}
 o2();home();
+/* ---------- zvuky (src/audio.js): napojení na události hry obalem funkcí – herní logika zůstává beze změny ---------- */
+{const A=window.KRILLION_SFX;if(A){const after=(f,g)=>function(...a){const pre={hl:ms.hl.best,est:ms.est.best,kr:st.best,n:run&&run.res?run.res.length:0};const r=f.apply(this,a);try{g(pre,...a)}catch(e){}return r};
+ splash=after(splash,(p,x,big)=>A.play(big?"splash":"plop"));
+ win=after(win,(p,r)=>A.play(r.tier>=3?"rare":"ok"));
+ lose=after(lose,()=>A.play("bad"));
+ pickHL=after(pickHL,p=>{if(!run||!run.res||run.res.length===p.n)return;const x=run.res[run.res.length-1];if(!x.ok)A.play("bad");else if(!streakBonus(run.streak))A.play(x.lv>=3?"rare":"ok")});
+ streakFx=after(streakFx,()=>A.play("streak"));
+ submitEst=after(submitEst,p=>{if(!run||!run.res||run.res.length===p.n)return;const k=run.res[run.res.length-1].s.k;A.play(k<=1?"rare":k<=3?"ok":"bad")});
+ setDepth=after(setDepth,(p,m)=>{if(m>0&&Math.random()<.8)A.play("bubble")});
+ end=after(end,p=>{if(st.best>p.kr)setTimeout(()=>A.play("record"),400)});
+ endHL=after(endHL,p=>{if(ms.hl.best>p.hl)setTimeout(()=>A.play("record"),400)});
+ endEst=after(endEst,p=>{if(ms.est.best>p.est)setTimeout(()=>A.play("record"),400)})}}
 }

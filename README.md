@@ -16,6 +16,7 @@ Při prvním spuštění každého režimu se ukáže krátký návod. Na konci 
 index.html          stránka hry
 styles.css          vzhled (tekuté sklo, HUD, karty)
 src/game.js         logika hry, vykreslování oceánu, potápěč, výběr otázek
+src/audio.js        zvuky generované v prohlížeči (Web Audio), ve výchozím stavu vypnuté
 src/shim.js         napojení na Clauda přes /api/ai (mimo claude.ai)
 data/questions.js   témata a odpovědi režimu Krillion (264 témat s úplným výčtem odpovědí)
 data/higher-lower.js položky režimu Vyšší, nebo nižší? (1 044 položek, 28 veličin, 223 překvapivých srovnání)
