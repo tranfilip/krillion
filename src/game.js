@@ -7,6 +7,10 @@ const zoneOf=m=>ZONES.filter(z=>m>=z[0]).pop()[1];
 const $=id=>document.getElementById(id),card=$("card");
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const fmt=n=>Math.round(n).toLocaleString("cs-CZ")+" m";
+/* ---------- nastavení: animace, vibrace, zvuk (localStorage „krillion-nastaveni“, odděleně od rekordů) ---------- */
+const SKEY="krillion-nastaveni";
+const SET=(()=>{const s={anim:true,vib:true,snd:false,seen:{}};try{const r=JSON.parse(localStorage.getItem(SKEY)||"null");if(r&&typeof r==="object"){for(const k of["anim","vib","snd"])if(typeof r[k]==="boolean")s[k]=r[k];if(r.seen&&typeof r.seen==="object"&&!Array.isArray(r.seen))s.seen=r.seen}}catch(e){}return s})();
+const saveSet=()=>{try{localStorage.setItem(SKEY,JSON.stringify(SET))}catch(e){}};
 const norm=s=>String(s).toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^a-z0-9 ]/g," ").replace(/\s+/g," ").trim();
 const BASE=P.map(([lvl,q,a])=>({lvl,q,list:a.split(",").map(x=>{const v=x.split("|");return{show:v[0],vars:v,keys:v.map(norm)}})}));
 /* ---------- odvozené otázky: na písmeno, podle délky ---------- */
@@ -79,10 +83,11 @@ const tierFromPct=p=>p>=12?0:p>=4?1:p>=1.2?2:p>=0.3?3:4;
 
 /* ---------- paměť a výběr témat (testuje tests/select.test.js) ---------- */
 const KEY="krillion5";
-function loadState(ls){const s={best:0,runs:0,used:[],fam:{},cnt:{},seq:0,aiQ:{1:[],2:[],3:[],4:[]},dom:[]};
+function loadState(ls){const s={best:0,runs:0,used:[],fam:{},cnt:{},seq:0,aiQ:{1:[],2:[],3:[],4:[]},dom:[],scores:[]};
  try{const r=JSON.parse(ls.getItem(KEY)||"{}");if(r&&typeof r==="object")Object.assign(s,r)}catch(e){}
  const obj=x=>x&&typeof x==="object"&&!Array.isArray(x);if(!obj(s.fam))s.fam={};if(!obj(s.cnt))s.cnt={};if(!Array.isArray(s.used))s.used=[];if(!Array.isArray(s.dom))s.dom=[];
  if(!obj(s.aiQ))s.aiQ={};for(const k of[1,2,3,4])if(!Array.isArray(s.aiQ[k]))s.aiQ[k]=[];s.seq=+s.seq||0;
+ s.scores=Array.isArray(s.scores)?s.scores.filter(x=>Number.isFinite(x)).slice(-20):[]; // výsledky posledních her (průměr na konci hry)
  for(const f in s.fam)if(!(s.cnt[f]>0)&&s.fam[f]>0)s.cnt[f]=1; // starší uložení bez počítadla: co už padlo, padlo jednou
  return s}
 function saveState(ls,s){try{ls.setItem(KEY,JSON.stringify(s));return true}catch(e){return false}}
@@ -157,7 +162,9 @@ function loadModes(ls){const s={hl:{best:0,runs:0,pairs:[],it:{}},est:{best:0,ru
  let r=null;try{r=JSON.parse(ls.getItem(MKEY)||"null")}catch(e){}
  if(obj(r))for(const k of["hl","est"])if(obj(r[k]))Object.assign(s[k],r[k]);
  const h=s.hl,e=s.est;h.best=+h.best||0;h.runs=+h.runs||0;h.pairs=Array.isArray(h.pairs)?h.pairs.filter(x=>typeof x==="string"):[];if(!obj(h.it))h.it={};if(!obj(h.sx))h.sx={};
- e.best=+e.best||0;e.runs=+e.runs||0;e.seq=+e.seq||0;if(!obj(e.cnt))e.cnt={};if(!obj(e.last))e.last={};return s}
+ e.best=+e.best||0;e.runs=+e.runs||0;e.seq=+e.seq||0;if(!obj(e.cnt))e.cnt={};if(!obj(e.last))e.last={};
+ for(const o of[h,e])o.scores=Array.isArray(o.scores)?o.scores.filter(x=>Number.isFinite(x)).slice(-20):[]; // výsledky posledních her
+ return s}
 function saveModes(ls,s){try{ls.setItem(MKEY,JSON.stringify(s));return true}catch(e){return false}}
 /* „Vyšší, nebo nižší?“: cílová obtížnost roste s počtem otázek (1–4 Lehká, 5–9 Střední, 10–15 Těžká, pak Expert).
    Pár: stejná veličina, poměr ≥ 1,05 (a ≥ min skupiny), co nejblíž cílové obtížnosti, žádná položka dvakrát za ponor,
@@ -253,8 +260,17 @@ if(!matchMedia("(pointer: coarse)").matches)addEventListener("pointermove",e=>{f
 /* ---------- oceán ---------- */
 const cv=$("sea"),cx=cv.getContext("2d");let W=0,H=0;
 const dk=document.createElement("canvas"),dx=dk.getContext("2d");
-const RM=matchMedia("(prefers-reduced-motion: reduce)").matches;
+// méně pohybu: systémové omezení pohybu (prefers-reduced-motion) nebo vypnuté animace v nastavení hry
+const OSRM=matchMedia("(prefers-reduced-motion: reduce)");let RM=false;
+function applyMotion(){RM=OSRM.matches||!SET.anim;document.documentElement.classList.toggle("no-anim",!SET.anim)}
+applyMotion();try{OSRM.addEventListener("change",applyMotion)}catch(e){}
 const MOBILE=matchMedia("(pointer: coarse)").matches;let SBK=MOBILE?0:1,Q=MOBILE?1:2,frameAvg=16;
+/* jemné vibrace (podle nastavení): Android přes Vibration API; iPhone (Safari 18+) umí jen krátké ťuknutí přes skrytý
+   přepínač – použije se jen tehdy, když není otevřená klávesnice (kliknutí nesmí vzít inputu fokus) */
+const IOS=/iP(hone|ad|od)/.test(navigator.userAgent)||navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1;
+const HAPT=!navigator.vibrate&&IOS?(()=>{const l=document.createElement("label"),i=document.createElement("input");i.type="checkbox";i.setAttribute("switch","");i.tabIndex=-1;l.setAttribute("aria-hidden","true");l.style.cssText="position:fixed;left:-100px;top:0;width:1px;height:1px;opacity:0;overflow:hidden;pointer-events:none";l.appendChild(i);document.body.appendChild(l);return l})():null;
+const CANBUZZ=MOBILE&&!!navigator.vibrate||!!HAPT;
+function buzz(p){if(!SET.vib||!CANBUZZ)return;try{if(navigator.vibrate){navigator.vibrate(p);return}const a=document.activeElement;if(!(a&&a.tagName==="INPUT"))HAPT.click()}catch(e){}}
 {const d=Object.getOwnPropertyDescriptor(CanvasRenderingContext2D.prototype,"shadowBlur");Object.defineProperty(cx,"shadowBlur",{get(){return d.get.call(this)},set(v){d.set.call(this,v*SBK)}})}
 const BUB=document.createElement("canvas");BUB.width=BUB.height=48;{const b=BUB.getContext("2d"),gg=b.createRadialGradient(17,17,0,24,24,24);gg.addColorStop(0,"rgba(255,255,255,.85)");gg.addColorStop(.7,"rgba(255,255,255,.08)");gg.addColorStop(.92,"rgba(255,255,255,.55)");gg.addColorStop(1,"rgba(255,255,255,0)");b.fillStyle=gg;b.fillRect(0,0,48,48)}
 let VIG=null;function vignette(){VIG=document.createElement("canvas");VIG.width=Math.ceil(W/2);VIG.height=Math.ceil(H/2);const v=VIG.getContext("2d"),gg=v.createRadialGradient(W/4,H/5,Math.min(W,H)*.17,W/4,H/4,Math.max(W,H)*.4);gg.addColorStop(0,"rgba(0,6,18,0)");gg.addColorStop(1,"rgba(0,6,18,1)");v.fillStyle=gg;v.fillRect(0,0,W,H)}
@@ -531,8 +547,8 @@ function home(){run=null;o2();setDepth(0,true);stage.classList.remove("play");ca
   ["hl","#8ef0c6","Vyšší, nebo nižší?","Ťukni na to, čeho je víc. Rozdíly se zmenšují, chyba stojí bublinu kyslíku.",ms.hl.best],
   ["est","#63b6ff","Odhad","Deset otázek, odpovíš číslem. Čím přesnější odhad, tím hlouběji.",ms.est.best],
   ["kr","#ffd36e","Krillion","Napiš odpověď. Čím vzácnější, tím hlouběji. Ponor končí, až dojde kyslík.",st.best]];
- swap(`<h1>Krillion</h1><p class="lede">Vyber si, jak se dnes ponoříš.</p><div class="modes">${M.map(([k,c,t,d,b],i)=>`<button class="mode" type="button" data-m="${k}" style="--c:${c};--i:${i}"><span class="mt">${t}</span><span class="mr">${rec(b)}</span><span class="md">${d}</span></button>`).join("")}</div>`,
-  ()=>{for(const b of card.querySelectorAll(".mode"))b.onclick=()=>({hl:startHL,est:startEst,kr:start})[b.dataset.m]()})}
+ swap(`<button class="gear" id="gear" type="button" aria-label="Nastavení" title="Nastavení">${SLIDERS}</button><h1>Krillion</h1><p class="lede">Vyber si, jak se dnes ponoříš.</p><div class="modes">${M.map(([k,c,t,d,b],i)=>`<button class="mode" type="button" data-m="${k}" style="--c:${c};--i:${i}"><span class="mt">${t}</span><span class="mr">${rec(b)}</span><span class="md">${d}</span></button>`).join("")}</div>`,
+  ()=>{for(const b of card.querySelectorAll(".mode"))b.onclick=()=>openMode(b.dataset.m);$("gear").onclick=settings})}
 function nextPrompt(l){gen(l);gen(Math.min(4,l+1));
  while(aiQ[l].length&&tooSimilar(aiQ[l][0].q,st.used.slice(-400)))aiQ[l].shift(); // starší fronta od Clauda
  if(aiQ[l].length&&Math.random()<.55){const i=Math.max(0,aiQ[l].findIndex(p=>!run.fams.has("dom:"+p.d)));const p=aiQ[l].splice(i,1)[0];run.asked.add(p.q);run.fams.add("dom:"+p.d);run.lastKind="ai";st.used.push(p.q);save();return{q:p.q,ai:true}}
@@ -559,7 +575,8 @@ function start(){run={mode:"kr",o2:3,pts:0,n:0,ans:[],best:null,asked:new Set(),
   $("a").addEventListener("input",e=>{if(advT)e.target.value=""});
   gen(1);gen(2);return $("a")},ask)}
 function ask(){busy=false;advT=null;run.n++;run.lvl=lvlFor(run.n);const p=nextPrompt(run.lvl);run.q=p.q;run.ai=p.ai;
- limit=run.n>16?Math.max(10,15-(run.n-16)*.5):({1:25,2:21,3:18,4:15})[run.lvl];left=limit;
+ limit=run.n>16?Math.max(10,15-(run.n-16)*.5):({1:25,2:21,3:18,4:15})[run.lvl];
+ limit+=readT(run.q.length,45,10,5);left=limit; // dlouhé zadání = pár sekund navíc na přečtení
  const pn=$("pn");pn.className="panel";pn.onclick=null;pn.innerHTML=`<div style="animation:fade .45s both"><div class="qn">#${run.n} · ${LVN[run.lvl]}</div>${(()=>{const m=run.q.match(/^(.*) \((na písmeno .+|aspoň \d+ písmen)\)$/);return m?`<div class="q">${esc(m[1])}</div><div class="tag">${esc(m[2])}</div>`:`<div class="q">${esc(run.q)}</div>`})()}</div>`;
  if(run.n===4||run.n===8||run.n===13)toast(`Obtížnost: ${LVN[run.lvl]} · ×${MULT[run.lvl]} hloubky`);
  const a=$("a");a.value="";$("f").classList.remove("dim");$("sb").innerHTML=ARROW;$("h").textContent="";$("sk").style.visibility="";
@@ -576,25 +593,24 @@ function showRes(html){stopT();busy=true;const pn=$("pn");pn.className="panel re
  $("f").classList.add("dim");$("sb").innerHTML=ARROW;$("sk").style.visibility="hidden";$("h").textContent="";
  clearTimeout(advT);advT=setTimeout(advance,run.o2>0?2300:2700)}
 function win(r){const T=TIERS[r.tier],m=Math.round(T.p*MULT[run.lvl]);run.pts+=m;run.ans.push(r.tier+1);if(!run.best||r.tier>run.best.t||(r.tier===run.best.t&&run.lvl>run.best.l))run.best={t:r.tier,a:r.name,l:run.lvl};
- setDepth(run.pts*10);burst(T.c,12+r.tier*10);
+ setDepth(run.pts*10);burst(T.c,12+r.tier*10);buzz(r.tier>=3?[20,40,20]:12);
  let extra="";if(r.tier===4&&run.o2<3){run.o2++;o2({i:run.o2-1,c:"gain"});extra=" · <b>+1 kyslík</b>"}
  showRes(`<div class="tier" style="color:${T.c};text-shadow:0 0 34px ${T.c}88">${T.n}</div><div class="sub"><b>${esc(r.name)}</b> · vzácnost ${r.tier+1}/5 · +${fmt(m*10)}${extra}</div><div class="ladder">${TIERS.map((x,i)=>`<i class="${i<=r.tier?"on":""}" style="color:${T.c};--i:${i}"></i>`).join("")}</div>`)}
 function lose(why,r){stopT();run.o2--;run.ans.push(0);o2({i:run.o2,c:"pop"});hurt=1;
- const f=$("flash");f.classList.add("on");setTimeout(()=>f.classList.remove("on"),60);const fe=$("f");fe.classList.remove("shake");void fe.offsetWidth;fe.classList.add("shake");try{navigator.vibrate&&navigator.vibrate(60)}catch(e){}
- const ex=r&&r.top&&r.top.length?r.top:(localJudge(run.q,"")||{}).top;
- showRes(`<div class="tier" style="color:#ffb0a5;text-shadow:0 0 30px #ff7a6a77">−1 kyslík</div><div class="sub">${esc(why)}${ex&&ex.length?` · platilo by třeba <b>${ex.map(esc).join(", ")}</b>`:""}</div>`)}
+ const f=$("flash");f.classList.add("on");setTimeout(()=>f.classList.remove("on"),60);const fe=$("f");fe.classList.remove("shake");void fe.offsetWidth;fe.classList.add("shake");buzz([40,30,40]);
+ // ukázka platných odpovědí: dvě běžné a jedna z nejvzácnějších (u vestavěných témat)
+ const ex=r&&r.top&&r.top.length?r.top:(localJudge(run.q,"")||{}).top,it=DBQ.get(run.q),rare=it&&it.list.length>=6?it.list[it.list.length-1].show:"";
+ const tip=ex&&ex.length?` · platilo by třeba <b>${(rare?ex.slice(0,2):ex).map(esc).join(", ")}</b>${rare?` nebo vzácné <b>${esc(rare)}</b>`:""}`:"";
+ showRes(`<div class="tier" style="color:#ffb0a5;text-shadow:0 0 30px #ff7a6a77">${run.o2>0?"−1 kyslík":"Došel kyslík"}</div><div class="sub">${esc(why)}${tip}</div>`)}
 function advance(){if(!advT)return;clearTimeout(advT);advT=null;if(run.o2<=0)end();else ask()}
-function end(){stopT();const a=$("a");a&&a.blur();stage.classList.remove("play");const m=run.pts*10,rec=m>st.best;if(rec)st.best=m;st.runs++;save();
- const z=zoneOf(m),T=run.best?TIERS[run.best.t]:null;
- swap(`<div class="end"><div class="qn">Došel kyslík</div><div class="big">${fmt(m)}</div><div class="zone">${esc(z)}${rec&&m>0?" · nový rekord":""}</div>
- <div class="tcap">Vzácnost odpovědí (1 = běžná, 5 = nejvzácnější, ✕ = chyba)</div><div class="chips">${run.ans.map((v,i)=>`<span style="--i:${i};${v?`color:${TIERS[v-1].c};box-shadow:inset 0 0 0 1px ${TIERS[v-1].c}66`:"color:rgba(255,255,255,.35)"}">${v||"✕"}</span>`).join("")}</div>
- ${(()=>{const ok=run.ans.filter(v=>v);return ok.length?`<div class="avg">Průměrná vzácnost <b>${(ok.reduce((a,b)=>a+b,0)/ok.length).toLocaleString("cs-CZ",{maximumFractionDigits:1,minimumFractionDigits:1})} / 5</b></div>`:""})()}
- <div class="meta"><span>Otázek <b>${run.n}</b></span>${T?`<span>Nejvzácnější <b style="color:${T.c}">${esc(run.best.a)}</b></span>`:""}<span>Rekord <b>${fmt(st.best)}</b></span></div>
- <div class="row"><button class="btn" id="nx">Ponořit se znovu</button><button class="btn g" id="cp">Sdílet</button></div><button class="skip" id="md" type="button">Jiný režim</button></div>`,()=>{
-  if(rec&&m>0)burst("#ffd36e",70);
-  $("nx").onclick=start;$("md").onclick=home;
-  $("cp").onclick=async()=>{const sq=["⬛","🟩","🟧","🟦","🟪","🟨"];const txt=`Krillion · ${fmt(m)} · ${z}\n${run.ans.map(v=>sq[v]).join("")}`;try{await navigator.clipboard.writeText(txt);toast("Zkopírováno")}catch(e){toast("Kopírování nejde")}}});
- const r0=run;setTimeout(()=>{if(run===r0&&S.m==="dive")beginAscent()},700);run.o2=0}
+function end(){stopT();const a=$("a");a&&a.blur();stage.classList.remove("play");const m=run.pts*10,prev=st.best;if(m>st.best)st.best=m;st.runs++;pushScore(st,m);save();
+ const r0=run,T=r0.best?TIERS[r0.best.t]:null,ok=r0.ans.filter(v=>v),avg=ok.length?ok.reduce((a,b)=>a+b,0)/ok.length:0;
+ endCard({title:"Krillion · došel kyslík",m,prev,runs:st.runs,scores:st.scores,again:start,
+  stats:[["otázek",r0.n],["správně",ok.length],["průměrná vzácnost",avg?avg.toLocaleString("cs-CZ",{maximumFractionDigits:1,minimumFractionDigits:1})+" / 5":"–"]],
+  note:T?`<div class="best">Nejvzácnější odpověď <b style="color:${T.c}">${esc(r0.best.a)}</b></div>`:"",
+  body:`<div class="tcap">Vzácnost odpovědí (1 = běžná, 5 = nejvzácnější, ✕ = chyba)</div><div class="chips">${r0.ans.map((v,i)=>chip(i,v?TIERS[v-1].c:"",v||"✕")).join("")}</div>`,
+  share:(z,rec)=>{const sq=["⬛","🟩","🟧","🟦","🟪","🟨"];return`🤿 Krillion\n🌊 ${fmt(m)} · ${z}${rec?" · 🏆 nový rekord":""}\n${T?`💎 nejvzácnější: ${r0.best.a}\n`:""}${r0.ans.map(v=>sq[v]).join("")}`}});
+ run.o2=0}
 /* ---------- společné pro nové režimy ---------- */
 let ms=loadModes(localStorage);const saveM=()=>saveModes(localStorage,ms);
 const HL_T=15,EST_N=10,EST_T=30;
@@ -611,12 +627,60 @@ function tick(sec,onEnd){stopT();limit=left=sec;const b0=$("bar"),p0=$("prog");i
   const low=left<6;if(p.classList.contains("low")!==low)p.classList.toggle("low",low);
   if(left<=0){stopT();onEnd();return}t.raf=requestAnimationFrame(f)};
  t.raf=requestAnimationFrame(f)}
-function ouch(){hurt=1;const f=$("flash");f.classList.add("on");setTimeout(()=>f.classList.remove("on"),60);try{navigator.vibrate&&navigator.vibrate(60)}catch(e){}}
-function share(btn,txt){btn.onclick=async()=>{try{await navigator.clipboard.writeText(txt);toast("Zkopírováno")}catch(e){toast("Kopírování nejde")}}}
+function ouch(){hurt=1;const f=$("flash");f.classList.add("on");setTimeout(()=>f.classList.remove("on"),60);buzz([40,30,40])}
 function ascendLater(){const r0=run;setTimeout(()=>{if(run===r0&&S.m==="dive")beginAscent()},700)}
-const endRow=`<div class="row"><button class="btn" id="nx">Ponořit se znovu</button><button class="btn g" id="cp">Sdílet</button></div><button class="skip" id="md" type="button">Jiný režim</button>`;
+/* ---------- návod při prvním spuštění režimu, nastavení, koncová obrazovka a sdílení ---------- */
+const SLIDERS='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2.2"/><circle cx="9" cy="17" r="2.2"/></svg>';
+const MODE_START={hl:()=>startHL(),est:()=>startEst(),kr:()=>start()};
+const HELP={
+ hl:["Vyšší, nebo nižší?","#8ef0c6",["Uvidíš dvě věci a otázku. Ťukni na tu, které je víc – je vyšší, starší, rychlejší…","Správně = hlouběji. Těžší otázka dá víc metrů, každých 6 správných v řadě přidá bonus.","Chyba nebo došlý čas stojí bublinu kyslíku. Máš tři."],MOBILE?"Po odpovědi uvidíš obě skutečné hodnoty i zdroj.":"Na počítači můžeš hrát i šipkami ← → (nebo 1 a 2)."],
+ est:["Odhad","#63b6ff",["Deset otázek s číselnou odpovědí, na každou máš 30 sekund.","Čím blíž skutečnosti, tím hlouběji: do ±5 % 1 000 m, dvakrát vedle 500 m, desetkrát vedle 50 m.","Velká čísla napiš jako „1,5 mil“ nebo „2 tis.“, nebo ťukni na tis. / mil. / mld."],"Kyslík tu nedochází – vždy odehraješ všech deset otázek."],
+ kr:["Krillion","#ffd36e",["Na každé zadání napiš jednu odpověď, třeba na „Jmenuj evropský stát“.","Čím vzácnější správná odpověď, tím hlouběji: Česko dá pár metrů, Lichtenštejnsko mnohem víc.","Chyba stojí bublinu kyslíku, nejvzácnější odpověď ji vrací. Překlepy a chybějící háčky nevadí."],"Ponor končí, až dojde kyslík."]};
+function openMode(k){if(SET.seen[k])MODE_START[k]();else helpCard(k)}
+// tlačítko „Ponořit se“ spouští hru přímo v tapnutí → iOS otevře klávesnici (viz launch)
+function helpCard(k,back){const[t,c,P,note]=HELP[k];
+ swap(`<div class="help" style="--c:${c}"><div class="qn">Jak se hraje</div><h2>${t}</h2><ol>${P.map((x,i)=>`<li style="--i:${i}"><i aria-hidden="true">${i+1}</i><span>${x}</span></li>`).join("")}</ol><p class="hnote">${note}</p>
+ <div class="row"><button class="btn" id="hgo" type="button">Ponořit se</button></div><button class="skip" id="hbk" type="button">${back?"Zpět do nastavení":"Jiný režim"}</button></div>`,()=>{
+  $("hgo").onclick=()=>{SET.seen[k]=1;saveSet();MODE_START[k]()};$("hbk").onclick=back||home;if(!MOBILE)try{$("hgo").focus({preventScroll:true})}catch(e){}})}
+function settings(){const sfx=window.KRILLION_SFX,row=(k,t,d)=>`<button class="sw" type="button" role="switch" aria-checked="${SET[k]}" data-k="${k}"><span><b>${t}</b><small>${d}</small></span><i aria-hidden="true"></i></button>`;
+ swap(`<div class="setc"><div class="qn">Krillion</div><h2>Nastavení</h2><div class="sets">
+ ${row("anim","Animace","Seskok z lodi, jiskry a přechody karet. Vypnuté = klidnější hra.")}
+ ${CANBUZZ?row("vib","Vibrace","Jemné zavibrování po odpovědi."):""}
+ ${sfx?row("snd","Zvuky","Šplouchnutí, bubliny a krátké znělky po odpovědi."):""}</div>
+ ${OSRM.matches?'<p class="hnote">V systému máš zapnuté omezení pohybu – hra se proto hýbe méně i se zapnutými animacemi.</p>':""}
+ <div class="hlp"><span>Jak se hraje</span>${Object.keys(HELP).map(k=>`<button type="button" class="chip" data-h="${k}">${HELP[k][0]}</button>`).join("")}</div>
+ <p class="sstat">Odehráno her: vyšší/nižší <b>${ms.hl.runs}</b> · odhad <b>${ms.est.runs}</b> · Krillion <b>${st.runs}</b></p>
+ <div class="row"><button class="btn" id="bk" type="button">Hotovo</button></div></div>`,()=>{
+  for(const b of card.querySelectorAll(".sw"))b.onclick=()=>{const k=b.dataset.k;SET[k]=!SET[k];saveSet();b.setAttribute("aria-checked",String(SET[k]));if(k==="anim")applyMotion();if(k==="vib"&&SET.vib)buzz(25);if(k==="snd"&&sfx&&sfx.set)sfx.set(SET.snd)};
+  for(const b of card.querySelectorAll("[data-h]"))b.onclick=()=>helpCard(b.dataset.h,settings);
+  $("bk").onclick=home})}
+// adresa hry do sdíleného textu (jen veřejná, ne localhost); bez ?fps a podobných parametrů
+const GAME_URL=/^https?:$/.test(location.protocol)&&!/^(localhost|127\.|0\.0\.0\.0|\[::1\]|192\.168\.|10\.)/.test(location.hostname)?location.origin+location.pathname.replace(/index\.html$/,""):"";
+function copyText(t){try{const a=document.createElement("textarea");a.value=t;a.setAttribute("readonly","");a.style.cssText="position:fixed;left:-9999px;top:0";document.body.appendChild(a);a.select();const ok=document.execCommand("copy");a.remove();return ok}catch(e){return false}}
+// na telefonu nabídka sdílení systému, jinak schránka (a záložní kopírování přes textarea)
+function shareBtn(btn,txt){btn.onclick=async()=>{const full=GAME_URL?txt+"\n"+GAME_URL:txt;
+ if(navigator.share&&MOBILE){try{await navigator.share({text:full});return}catch(e){if(e&&e.name==="AbortError")return}}
+ try{await navigator.clipboard.writeText(full);toast("Výsledek je ve schránce – pošli ho kamarádům")}catch(e){toast(copyText(full)?"Výsledek je ve schránce":"Kopírování nejde")}}}
+const pushScore=(o,m)=>{o.scores=(o.scores||[]).concat(Math.round(m)).slice(-20)};
+/* koncová karta: výsledek, rekord (nový / kolik chybělo), statistiky, průběh hry, sdílení. o.share(zóna, rekord) vrací text */
+function endCard(o){const{m,prev}=o,rec=m>prev&&m>0,z=zoneOf(m),L=o.scores.slice(-10),avg=L.length>1?L.reduce((a,b)=>a+b,0)/L.length:0;
+ const badge=rec?`<div class="rec">Nový rekord${prev>0?`<span> · předchozí ${fmt(prev)}</span>`:""}</div>`:prev>0?`<div class="recn">Rekord ${fmt(prev)} · chybělo ${fmt(prev-m)}</div>`:"";
+ swap(`<div class="end"><div class="qn">${esc(o.title)}</div><div class="big">${fmt(m)}</div><div class="zone">${esc(z)}</div>${badge}
+ <div class="stats">${o.stats.map(([k,v],i)=>`<div style="--i:${i}"><b>${v}</b><small>${k}</small></div>`).join("")}</div>${o.note||""}
+ ${o.body}<div class="hist">Hra č. ${o.runs}${avg?` · průměr posledních ${L.length} her ${fmt(avg)}`:""}</div>
+ <div class="row"><button class="btn" id="nx" type="button">Ponořit se znovu</button><button class="btn g" id="cp" type="button">Sdílet</button></div><button class="skip" id="md" type="button">Jiný režim</button></div>`,()=>{
+  if(rec){burst("#ffd36e",70);buzz([30,50,30,50,90])}
+  $("nx").onclick=o.again;$("md").onclick=home;shareBtn($("cp"),o.share(z,rec))});
+ ascendLater()}
+// čipy průběhu hry: barva = obtížnost nebo vzácnost, ✕ = chyba
+const chip=(i,c,t,title)=>`<span style="--i:${i};${c?`background:${c}2e;box-shadow:inset 0 0 0 1.5px ${c};color:#fff`:"background:rgba(0,10,30,.25);color:rgba(255,255,255,.55)"}"${title?` title="${title}"`:""}>${t}</span>`;
 const LVC={1:"#8ef0c6",2:"#63b6ff",3:"#c9a8ff",4:"#ffd36e"};
 const pct=r=>r<2?`${Math.max(5,Math.round((r-1)*100))} %`:`${fmtR(r)}×`;
+// sekundy navíc na přečtení dlouhého zadání: (délka textu − základ) / znaků za sekundu, nejvýš max
+const readT=(len,base,per,max)=>Math.min(max,Math.max(0,Math.round((len-base)/per)));
+// stupnice odhadu (logaritmická): uprostřed skutečnost, okraje = 1 000× míň / víc; pásma ±25 %, 2×, 10×
+function gauge(g,t,c){if(!(g>0))return"";const x=50+Math.max(-1,Math.min(1,Math.log10(g/t)/3))*50;
+ return`<div class="gauge" role="img" aria-label="Tvůj tip ${esc(estDiff(g,t))}"><span>1 000× míň</span><span>přesně</span><span>1 000× víc</span><i style="left:${x.toFixed(1)}%;background:${c};box-shadow:0 0 10px ${c}"></i></div>`}
 
 /* ---------- režim „Vyšší, nebo nižší?“ ---------- */
 function startHL(){run={mode:"hl",o2:3,pts:0,n:0,ok:0,res:[],items:new Set(),vc:{},lastV:[],streak:0,bestStreak:0};
@@ -627,7 +691,7 @@ function askHL(){busy=false;advT=null;card.onclick=null;run.n++;const p=pickPair
  const pn=$("pn");pn.className="panel hlq";pn.innerHTML=`<div style="animation:fade .45s both"><div class="qn">#${run.n} · <span class="lvl l${p.lvl}">${LVN[p.lvl]}</span> · ${esc(cat)}</div><div class="q">${esc(V[0])}</div></div>`;
  $("duel").innerHTML=[a,b].map((x,i)=>`<button class="opt" type="button" id="o${i}" style="--i:${i}"><b>${esc(x.n)}</b><span class="val" id="v${i}"></span></button>${i?"":'<span class="vs">nebo</span>'}`).join("");
  $("o0").onclick=()=>pickHL(0);$("o1").onclick=()=>pickHL(1);$("h").textContent="";
- tick(HL_T,()=>pickHL(-1))}
+ tick(HL_T+readT(V[0].length+a.n.length+b.n.length,50,12,3),()=>pickHL(-1))}
 // hodnota se „načítá“ od nuly (krátká animace po odpovědi)
 function countUp(el,x){const D=RM?0:750,t0=performance.now(),round=Number.isInteger(x.val)||x.val>=10;
  const f=t=>{const k=D?Math.min(1,Math.max(0,(t-t0)/D)):1,e=1-(1-k)**3,v=k>=1?x.val:round?Math.round(x.val*e):x.val*e;el.textContent=fmtHL(x,v);if(k<1)requestAnimationFrame(f)};requestAnimationFrame(f)}
@@ -638,9 +702,10 @@ function pickHL(i){if(busy||!run||run.mode!=="hl")return;busy=true;stopT();
  if(ok){const m=hlPoints(lv);run.pts+=m;run.ok++;run.streak++;run.bestStreak=Math.max(run.bestStreak,run.streak);const bonus=streakBonus(run.streak);run.pts+=bonus;setDepth(run.pts);
   const line=`${LVN[lv]} ×${fmtR(mult)} · <b>+${fmt(m)}</b> · rozdíl ${pct(r)}`;
   if(bonus){streakFx();o2({hot:1});head=`<div class="tier" style="color:#ffd36e;text-shadow:0 0 40px #ffd36e">Série ${run.streak}! +${fmt(bonus)}</div><div class="sub">Správně · ${line}</div>`}
-  else{o2();burst("#8ef0c6",10+lv*6);head=`<div class="tier" style="color:#8ef0c6;text-shadow:0 0 34px #8ef0c688">Správně</div><div class="sub">${line}</div>`}}
- else{run.streak=0;run.o2--;o2({i:run.o2,c:"pop"});ouch();const d=$("duel");d.classList.remove("shake");void d.offsetWidth;d.classList.add("shake");
-  head=`<div class="tier" style="color:#ffb0a5;text-shadow:0 0 30px #ff7a6a77">${i<0?"Došel čas":"−1 kyslík"}</div><div class="sub">${i<0?"−1 kyslík · ":""}víc má <b>${esc(W.n)}</b> · rozdíl ${pct(r)}</div>`}
+  else{o2();burst("#8ef0c6",10+lv*6);buzz(12);const k=run.streak,left=6-k%6;
+   head=`<div class="tier" style="color:#8ef0c6;text-shadow:0 0 34px #8ef0c688">Správně</div><div class="sub">${line}</div>${k>=2?`<div class="sub s2">Série ${k} · do bonusu ještě ${left} ${left===1?"správná":left<5?"správné":"správných"}</div>`:""}`}}
+ else{const lost=run.streak;run.streak=0;run.o2--;o2({i:run.o2,c:"pop"});ouch();const d=$("duel");d.classList.remove("shake");void d.offsetWidth;d.classList.add("shake");
+  head=`<div class="tier" style="color:#ffb0a5;text-shadow:0 0 30px #ff7a6a77">${run.o2<=0?"Došel kyslík":i<0?"Došel čas":"−1 kyslík"}</div><div class="sub">${i<0?(run.o2>0?"−1 kyslík · ":"došel čas · "):""}víc má <b>${esc(W.n)}</b> · rozdíl ${pct(r)}${lost>=3?` · série ${lost} skončila`:""}</div>`}
  run.res.push({ok,r,lv});
  const pn=$("pn");pn.className="panel hlq res";pn.innerHTML=`<div>${head}</div>`;
  const notes=run.p.fact?[]:a.note===b.note?[a.note]:[a.note&&`${a.n}: ${a.note}`,b.note&&`${b.n}: ${b.note}`];
@@ -648,16 +713,14 @@ function pickHL(i){if(busy||!run||run.mode!=="hl")return;busy=true;stopT();
  run.tapAt=performance.now()+450;card.onclick=()=>{if(advT&&performance.now()>run.tapAt)advHL()};
  clearTimeout(advT);advT=setTimeout(advHL,(ok?2500:3000)+(run.p.fact?1800:0))}
 function streakFx(){const f=$("flash");f.classList.add("gold","on");setTimeout(()=>f.classList.remove("on"),90);setTimeout(()=>f.classList.remove("gold"),900);
- burst("#ffd36e",MOBILE?50:80);ease=450;let k=0;const t=setInterval(()=>{kick=1;if(++k>8)clearInterval(t)},150);try{navigator.vibrate&&navigator.vibrate([30,40,30])}catch(e){}}
+ burst("#ffd36e",MOBILE?50:80);ease=450;let k=0;const t=setInterval(()=>{kick=1;if(++k>8)clearInterval(t)},150);buzz([30,40,30,40,60])}
 function advHL(){if(!advT)return;clearTimeout(advT);advT=null;card.onclick=null;if(run.o2<=0)endHL();else askHL()}
-function endHL(){stopT();card.onclick=null;stage.classList.remove("play");const h=ms.hl,m=run.pts,rec=m>h.best;if(rec)h.best=m;h.runs++;saveM();
- const z=zoneOf(m),okR=run.res.filter(x=>x.ok).map(x=>x.r),tight=okR.length?Math.min(...okR):0,rs=run.res.slice(-40);
- swap(`<div class="end"><div class="qn">Vyšší, nebo nižší? · došel kyslík</div><div class="big">${fmt(m)}</div><div class="zone">${esc(z)}${rec&&m>0?" · nový rekord":""}</div>
- <div class="tcap">Odpovědi (barva = obtížnost: lehká, střední, těžká, expert; ✕ = chyba)</div><div class="chips">${rs.map((x,i)=>`<span style="--i:${i};${x.ok?`color:${LVC[x.lv]};box-shadow:inset 0 0 0 1px ${LVC[x.lv]}66`:"color:rgba(255,255,255,.35)"}" title="${LVN[x.lv]}">${x.ok?"✓":"✕"}</span>`).join("")}</div>
- <div class="meta"><span>Správně <b>${run.ok}</b></span><span>Nejdelší série <b>${run.bestStreak}</b></span>${tight?`<span>Nejtěsnější rozdíl <b>${pct(tight)}</b></span>`:""}<span>Rekord <b>${fmt(h.best)}</b></span></div>${endRow}</div>`,()=>{
-  if(rec&&m>0)burst("#ffd36e",70);$("nx").onclick=startHL;$("md").onclick=home;
-  share($("cp"),`Krillion · Vyšší, nebo nižší? · ${fmt(m)} · správně ${run.ok}\n${run.res.map(x=>x.ok?"🟩":"⬛").join("")}`)});
- ascendLater()}
+function endHL(){stopT();card.onclick=null;stage.classList.remove("play");const h=ms.hl,m=run.pts,prev=h.best;if(m>h.best)h.best=m;h.runs++;pushScore(h,m);saveM();
+ const r0=run,okR=r0.res.filter(x=>x.ok).map(x=>x.r),tight=okR.length?Math.min(...okR):0,rs=r0.res.slice(-40),acc=r0.res.length?Math.round(r0.ok/r0.res.length*100):0;
+ endCard({title:"Vyšší, nebo nižší? · došel kyslík",m,prev,runs:h.runs,scores:h.scores,again:startHL,
+  stats:[["správně",r0.ok],["úspěšnost",acc+" %"],["nejdelší série",r0.bestStreak],["nejtěsnější rozdíl",tight?pct(tight):"–"]],
+  body:`<div class="tcap">Odpovědi podle obtížnosti: ${[1,2,3,4].map(l=>`<i class="lg" style="color:${LVC[l]}">●</i> ${LVN[l].toLowerCase()}`).join(" ")} · ✕ chyba</div><div class="chips">${rs.map((x,i)=>chip(i,x.ok?LVC[x.lv]:"",x.ok?"✓":"✕",LVN[x.lv])).join("")}</div>`,
+  share:(z,rec)=>{const sq={1:"🟩",2:"🟦",3:"🟪",4:"🟨"};return`🤿 Krillion · Vyšší, nebo nižší?\n🌊 ${fmt(m)} · ${z}${rec?" · 🏆 nový rekord":""}\n✅ ${r0.ok} správně · 🔥 nejdelší série ${r0.bestStreak}\n${rs.map(x=>x.ok?sq[x.lv]:"⬛").join("")}`}})}
 addEventListener("keydown",e=>{if(!run||run.mode!=="hl"||!stage.classList.contains("play")||stage.classList.contains("intro")||e.metaKey||e.ctrlKey||e.altKey)return;
  if(advT&&(e.key==="Enter"||e.key===" ")){e.preventDefault();advHL();return}
  const i={ArrowLeft:0,"1":0,ArrowRight:1,"2":1}[e.key];if(i!==undefined&&!busy){e.preventDefault();pickHL(i)}});
@@ -686,25 +749,23 @@ function askEst(){busy=false;advT=null;run.n++;run.mul=1;o2();const q=pickEst(ms
  const a=$("a");a.value="";$("f").classList.remove("dim");$("h").textContent="";$("un").textContent=SHORTU.has(q.u)?q.u:"";$("mu").style.visibility="";
  for(const o of card.querySelectorAll("#mu button"))o.classList.remove("on");
  try{a.focus({preventScroll:true})}catch(e){}
- tick(EST_T,()=>submitEst(true))}
+ tick(EST_T+readT(q.q.length,80,10,5),()=>submitEst(true))}
 function submitEst(timeout){const a=$("a");if(!a||busy||!run||run.mode!=="est")return;const g=estVal();
  if(!timeout&&!(g>0)){$("h").textContent="Napiš kladné číslo, třeba 1 500, 2,5 tis. nebo 3 mil.";const f=$("f");f.classList.remove("shake");void f.offsetWidth;f.classList.add("shake");try{a.focus({preventScroll:true})}catch(e){}return}
  busy=true;stopT();const q=run.q,s=estScore(g,q.v),T=ESTT[s.k];run.pts+=s.m;run.res.push({q,g,s});
- if(s.m){setDepth(run.pts);burst(T.c,Math.max(4,6+(3-s.k)*12))}else{ouch();const f=$("f");f.classList.remove("shake");void f.offsetWidth;f.classList.add("shake")}
+ if(s.m){setDepth(run.pts);burst(T.c,Math.max(4,6+(3-s.k)*12));buzz(s.k<=1?[15,30,15]:12)}else{ouch();const f=$("f");f.classList.remove("shake");void f.offsetWidth;f.classList.add("shake")}
  const pn=$("pn");pn.className="panel res";pn.innerHTML=`<div><div class="tier" style="color:${T.c};text-shadow:0 0 30px ${T.c}77">${T.n}</div>
  <div class="sub">Skutečnost <b>${esc(withU(q.v,q.u))}</b></div>
- <div class="sub">${g>0?`Tvůj tip ${esc(fmtNum(g))} · ${esc(estDiff(g,q.v))}`:"Došel čas"} · <b>+${fmt(s.m)}</b></div>${q.note?`<div class="src">${esc(q.note)}</div>`:""}</div>`;
+ <div class="sub">${g>0?`Tvůj tip ${esc(fmtNum(g))} · ${esc(estDiff(g,q.v))}`:"Došel čas"} · <b>+${fmt(s.m)}</b></div>${gauge(g,q.v,T.c)}${q.note?`<div class="src">${esc(q.note)}</div>`:""}</div>`;
  pn.onclick=advEst;$("f").classList.add("dim");$("mu").style.visibility="hidden";$("h").textContent="";
  try{a.focus({preventScroll:true})}catch(e){}
  clearTimeout(advT);advT=setTimeout(advEst,5500)}
 function advEst(){if(!advT)return;clearTimeout(advT);advT=null;if(run.n>=EST_N)endEst();else askEst()}
-function endEst(){stopT();const a=$("a");a&&a.blur();card.onclick=null;stage.classList.remove("play");const e=ms.est,m=run.pts,rec=m>e.best;if(rec)e.best=m;e.runs++;saveM();
- const z=zoneOf(m),ex=run.res.filter(x=>x.s.k===0).length,good=run.res.filter(x=>x.s.k<=1).length;
- swap(`<div class="end"><div class="qn">Odhad · ponor dokončen</div><div class="big">${fmt(m)}</div><div class="zone">${esc(z)}${rec&&m>0?" · nový rekord":""}</div>
- <div class="elist">${run.res.map((x,i)=>{const T=ESTT[x.s.k];return`<div class="er" style="--i:${i}"><span class="eq">${i+1}. ${esc(x.q.q)}</span><b class="em" style="color:${T.c}">+${fmt(x.s.m)}</b><span class="ev">tip <b>${x.g>0?esc(fmtNum(x.g)):"—"}</b> · skutečnost <b>${esc(withU(x.q.v,x.q.u))}</b>${x.g>0?" · "+esc(estDiff(x.g,x.q.v)):""}</span></div>`}).join("")}</div>
- <div class="meta"><span>Přesně <b>${ex}</b></span><span>Do ±25 % <b>${good}</b></span><span>Rekord <b>${fmt(e.best)}</b></span></div>${endRow}</div>`,()=>{
-  if(rec&&m>0)burst("#ffd36e",70);$("nx").onclick=startEst;$("md").onclick=home;
-  share($("cp"),`Krillion · Odhad · ${fmt(m)} · ${z}\n${run.res.map(x=>["🟨","🟩","🟦","🟪","⬛","⬛"][x.s.k]).join("")}`)});
- ascendLater()}
+function endEst(){stopT();const a=$("a");a&&a.blur();card.onclick=null;stage.classList.remove("play");const e=ms.est,m=run.pts,prev=e.best;if(m>e.best)e.best=m;e.runs++;pushScore(e,m);saveM();
+ const r0=run,ex=r0.res.filter(x=>x.s.k===0).length,good=r0.res.filter(x=>x.s.k<=1).length,ans=r0.res.filter(x=>x.g>0),dev=ans.length?Math.exp(ans.reduce((s,x)=>s+Math.log(x.s.q),0)/ans.length):0;
+ endCard({title:"Odhad · ponor dokončen",m,prev,runs:e.runs,scores:e.scores,again:startEst,
+  stats:[["přesně (±5 %)",ex],["do ±25 %",good],["průměrná odchylka",dev?(dev<1.05?"pod 5 %":pct(dev)):"–"]],
+  body:`<div class="elist">${r0.res.map((x,i)=>{const T=ESTT[x.s.k];return`<div class="er" style="--i:${i}"><span class="eq">${i+1}. ${esc(x.q.q)}</span><b class="em" style="color:${T.c}">+${fmt(x.s.m)}</b><span class="ev">tip <b>${x.g>0?esc(fmtNum(x.g)):"—"}</b> · skutečnost <b>${esc(withU(x.q.v,x.q.u))}</b>${x.g>0?" · "+esc(estDiff(x.g,x.q.v)):""}</span></div>`}).join("")}</div>`,
+  share:(z,rec)=>`🤿 Krillion · Odhad\n🌊 ${fmt(m)} · ${z}${rec?" · 🏆 nový rekord":""}\n🎯 přesně ${ex} · do ±25 % ${good}\n${r0.res.map(x=>["🟨","🟩","🟦","🟪","⬛","⬛"][x.s.k]).join("")}`})}
 o2();home();
 }

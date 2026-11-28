@@ -8,6 +8,8 @@
 
 Každý režim má vlastní rekord a otázky se neopakují ani mezi hrami.
 
+Při prvním spuštění každého režimu se ukáže krátký návod. Na konci hry uvidíš přehled (úspěšnost, série, průměrná odchylka…), jestli padl rekord a výsledek můžeš poslat kamarádům jako text s emoji. V nastavení (ikona na úvodní kartě) jde vypnout animace a vibrace.
+
 ## Struktura
 
 ```

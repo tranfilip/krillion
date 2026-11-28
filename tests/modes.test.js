@@ -129,6 +129,8 @@ for (const x of M.HLX) if (!(x.lr >= Math.log(1.05) - 1e-12)) check(false, `pře
   ls.setItem("krillion-rezimy1", "{rozbité"); check(M.loadModes(ls).hl.best === 0, "rozbité uložení = čistý stav");
   ls.setItem("krillion-rezimy1", JSON.stringify({ hl: { pairs: "x", it: [], best: "12" }, est: { cnt: [], last: 5 } }));
   const m3 = M.loadModes(ls); check(Array.isArray(m3.hl.pairs) && !Array.isArray(m3.hl.it) && m3.hl.best === 12 && !Array.isArray(m3.est.cnt) && typeof m3.est.last === "object", "špatné typy v uložení se musí opravit");
+  ls.setItem("krillion-rezimy1", JSON.stringify({ hl: { scores: [100, "x", null, 250] }, est: { scores: "nic" } }));
+  const m4 = M.loadModes(ls); check(m4.hl.scores.join() === "100,250" && Array.isArray(m4.est.scores) && !m4.est.scores.length, "výsledky posledních her: jen čísla, jinak prázdné pole");
 }
 
 console.log(fail ? `\n${fail} testů režimů selhalo` : "Testy režimů prošly");
