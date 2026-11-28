@@ -15,7 +15,12 @@ Při prvním spuštění každého režimu se ukáže krátký návod. Na konci 
 ```
 index.html          stránka hry
 styles.css          vzhled (tekuté sklo, HUD, karty)
-src/game.js         logika hry, vykreslování oceánu, potápěč, výběr otázek
+src/rozpoznavani.js rozpoznávání odpovědí (překlepy, tvary slov, neúplné odpovědi)
+src/data.js         paměť a výběr otázek všech režimů, hodnocení odhadu, ukládání
+src/claude.js       napojení na Clauda (vymýšlení zadání a hodnocení odpovědí)
+src/vykreslovani.js oceán na canvasu, živočichové, potápěč, loď a seskok
+src/ui.js           karta, HUD, úvodní obrazovka, režim Krillion, časový pruh
+src/rezimy.js       režimy Vyšší, nebo nižší? a Odhad
 src/audio.js        zvuky generované v prohlížeči (Web Audio), ve výchozím stavu vypnuté
 src/shim.js         napojení na Clauda přes /api/ai (mimo claude.ai)
 data/questions.js   témata a odpovědi režimu Krillion (264 témat s úplným výčtem odpovědí)
@@ -67,7 +72,7 @@ kategorie, otázka, skutečná hodnota (kladné číslo), jednotka ve správném
 
 ```bash
 npm run dev          # jen hra, bez Clauda (vestavěné seznamy)
-npm test             # testy rozpoznávání, výběru témat a kontrola dat
+npm test             # syntaxe skriptů, testy rozpoznávání, výběru témat, režimů a kontrola dat
 npm run dev:ai       # hra i s Claudem (potřebuje Vercel CLI a .env.local s klíčem)
 ```
 

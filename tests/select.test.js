@@ -1,5 +1,5 @@
 // Testy paměti a výběru témat. Spuštění: npm test
-// Z src/game.js vyřízne rozpoznávání (DB, norm…) a blok „paměť a výběr témat“, takže testuje skutečný kód hry.
+// Z src/rozpoznavani.js a src/data.js vyřízne rozpoznávání (DB, norm…) a blok „paměť a výběr témat“, takže testuje skutečný kód hry.
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
@@ -7,8 +7,8 @@ const root = fileURLToPath(new URL("..", import.meta.url));
 const window = {};
 new Function("window", readFileSync(root + "data/questions.js", "utf8"))(window);
 const P = window.KRILLION_DATA;
-const src = readFileSync(root + "src/game.js", "utf8");
-const cut = (a, b) => { const i = src.indexOf(a), j = src.indexOf(b); if (i < 0 || j < 0) throw new Error(`V src/game.js chybí ${a} nebo ${b}`); return src.slice(i, j); };
+const src = ["src/rozpoznavani.js", "src/data.js"].map((f) => readFileSync(root + f, "utf8")).join("\n");
+const cut = (a, b) => { const i = src.indexOf(a), j = src.indexOf(b); if (i < 0 || j < 0) throw new Error(`V src/rozpoznavani.js a src/data.js chybí ${a} nebo ${b}`); return src.slice(i, j); };
 const code = cut("const norm=", "const tierFromPct") + cut("/* ---------- paměť a výběr témat", "/* ---------- konec výběru");
 const { loadState, saveState, pickTopic, tooSimilar } = new Function("P", code + "\nreturn{loadState,saveState,pickTopic,tooSimilar};")(P);
 
