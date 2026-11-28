@@ -1,12 +1,19 @@
-// Krillion – Paměť a výběr otázek: témata Krillionu (loadState, pickTopic, tooSimilar), režimy vyšší/nižší a odhad (čísla, hodnocení, výběr párů a otázek, loadModes),
+// Krillion – Nastavení hry (SET, localStorage „krillion-nastaveni“), paměť a výběr otázek: témata Krillionu (loadState, pickTopic, tooSimilar), režimy vyšší/nižší a odhad (čísla, hodnocení, výběr párů a otázek, loadModes),
 // ukládání do localStorage. Bloky mezi značkami testují tests/select.test.js a tests/modes.test.js – značky nepřejmenovávej.
 // Skripty se načítají v pořadí z index.html a sdílejí horní const/let/function (klasické skripty, bez build kroku).
+/* ---------- nastavení: animace, vibrace, zvuk (localStorage „krillion-nastaveni“, odděleně od rekordů) ---------- */
+const SKEY="krillion-nastaveni";
+const SET=(()=>{const s={anim:true,vib:true,snd:false,seen:{}};try{const r=JSON.parse(localStorage.getItem(SKEY)||"null");if(r&&typeof r==="object"){for(const k of["anim","vib","snd"])if(typeof r[k]==="boolean")s[k]=r[k];if(r.seen&&typeof r.seen==="object"&&!Array.isArray(r.seen))s.seen=r.seen}}catch(e){}return s})();
+// zvuk jde přepnout i reproduktorem z src/audio.js – stav „snd“ se bere odtud, ať ho uložení nastavení nepřepíše starou hodnotou
+const syncSnd=()=>{const x=window.KRILLION_SFX;if(x&&typeof x.on==="boolean")SET.snd=x.on};
+const saveSet=()=>{syncSnd();try{localStorage.setItem(SKEY,JSON.stringify(SET))}catch(e){}};
 /* ---------- paměť a výběr témat (testuje tests/select.test.js) ---------- */
 const KEY="krillion5";
-function loadState(ls){const s={best:0,runs:0,used:[],fam:{},cnt:{},seq:0,aiQ:{1:[],2:[],3:[],4:[]},dom:[]};
+function loadState(ls){const s={best:0,runs:0,used:[],fam:{},cnt:{},seq:0,aiQ:{1:[],2:[],3:[],4:[]},dom:[],scores:[]};
  try{const r=JSON.parse(ls.getItem(KEY)||"{}");if(r&&typeof r==="object")Object.assign(s,r)}catch(e){}
  const obj=x=>x&&typeof x==="object"&&!Array.isArray(x);if(!obj(s.fam))s.fam={};if(!obj(s.cnt))s.cnt={};if(!Array.isArray(s.used))s.used=[];if(!Array.isArray(s.dom))s.dom=[];
  if(!obj(s.aiQ))s.aiQ={};for(const k of[1,2,3,4])if(!Array.isArray(s.aiQ[k]))s.aiQ[k]=[];s.seq=+s.seq||0;
+ s.scores=Array.isArray(s.scores)?s.scores.filter(x=>Number.isFinite(x)).slice(-20):[]; // výsledky posledních her (průměr na konci hry)
  for(const f in s.fam)if(!(s.cnt[f]>0)&&s.fam[f]>0)s.cnt[f]=1; // starší uložení bez počítadla: co už padlo, padlo jednou
  return s}
 function saveState(ls,s){try{ls.setItem(KEY,JSON.stringify(s));return true}catch(e){return false}}
@@ -81,7 +88,9 @@ function loadModes(ls){const s={hl:{best:0,runs:0,pairs:[],it:{}},est:{best:0,ru
  let r=null;try{r=JSON.parse(ls.getItem(MKEY)||"null")}catch(e){}
  if(obj(r))for(const k of["hl","est"])if(obj(r[k]))Object.assign(s[k],r[k]);
  const h=s.hl,e=s.est;h.best=+h.best||0;h.runs=+h.runs||0;h.pairs=Array.isArray(h.pairs)?h.pairs.filter(x=>typeof x==="string"):[];if(!obj(h.it))h.it={};if(!obj(h.sx))h.sx={};
- e.best=+e.best||0;e.runs=+e.runs||0;e.seq=+e.seq||0;if(!obj(e.cnt))e.cnt={};if(!obj(e.last))e.last={};return s}
+ e.best=+e.best||0;e.runs=+e.runs||0;e.seq=+e.seq||0;if(!obj(e.cnt))e.cnt={};if(!obj(e.last))e.last={};
+ for(const o of[h,e])o.scores=Array.isArray(o.scores)?o.scores.filter(x=>Number.isFinite(x)).slice(-20):[]; // výsledky posledních her
+ return s}
 function saveModes(ls,s){try{ls.setItem(MKEY,JSON.stringify(s));return true}catch(e){return false}}
 /* „Vyšší, nebo nižší?“: cílová obtížnost roste s počtem otázek (1–4 Lehká, 5–9 Střední, 10–15 Těžká, pak Expert).
    Pár: stejná veličina, poměr ≥ 1,05 (a ≥ min skupiny), co nejblíž cílové obtížnosti, žádná položka dvakrát za ponor,
@@ -129,7 +138,11 @@ function mergeState(r){if(!r||typeof r!=="object")return;st.best=Math.max(st.bes
 async function pushRemote(){if(!dbRef||remoteBusy)return;remoteBusy=true;remoteDirty=false;
  try{await dbRef.set({best:st.best,runs:st.runs,seq:st.seq,fam:st.fam,used:st.used.slice(-2500),aiQ:st.aiQ,dom:st.dom.slice(-60)})}catch(e){}
  remoteBusy=false;if(remoteDirty)pushRemote()}
-const save=()=>{saveState(localStorage,st);remoteDirty=true;clearTimeout(remoteT);remoteT=setTimeout(pushRemote,1500)};
+/* zápis do localStorage (stovky kB JSONu) neběží uprostřed animace nové otázky, ale chvíli po ní;
+   při odchodu ze stránky nebo přepnutí aplikace se uloží hned */
+const later=(fn,ms)=>{let t=0;const run=()=>{if(t){clearTimeout(t);t=0;fn()}},f=()=>{if(!t)t=setTimeout(run,ms)};f.flush=run;return f};
+const saveLS=later(()=>saveState(localStorage,st),700);
+const save=()=>{saveLS();remoteDirty=true;clearTimeout(remoteT);remoteT=setTimeout(pushRemote,1500)};
 (async()=>{try{if(!window.claude||!window.claude.use)return;const[db,user]=await Promise.all([window.claude.use("db"),window.claude.use("user")]);if(!db||!user)return;const id=await user.id();if(!id)return;
  const ref=db.doc("data/users/"+id+"/krillion");const snap=await ref.get();dbRef=ref;if(snap.exists){mergeState(snap.data());saveState(localStorage,st)}}catch(e){}})();
 // Safari po 7 dnech bez návštěvy maže localStorage; požádej o trvalé úložiště, kde to jde

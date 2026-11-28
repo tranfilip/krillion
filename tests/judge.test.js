@@ -41,6 +41,15 @@ const Q = {
   mesic: "Jmenuj měsíc v roce",
   ryba: "Jmenuj sladkovodní rybu žijící v Česku",
   papez: "Jmenuj papeže (i bývalého)",
+  nerv: "Jmenuj hlavový nerv",
+  heraklos: "Jmenuj Héraklův úkol (dvanáct prací)",
+  amino: "Jmenuj aminokyselinu, ze které se skládají bílkoviny",
+  trpaslik: "Jmenuj trpaslíka z Thorinovy výpravy (Hobit)",
+  anglie: "Jmenuj klub, který vyhrál nejvyšší anglickou fotbalovou ligu (First Division nebo Premier League)",
+  brno: "Jmenuj městskou část Brna",
+  cimrman: "Jmenuj hru Divadla Járy Cimrmana",
+  nemecko: "Jmenuj spolkového prezidenta Německa (od roku 1949)",
+  varsava: "Jmenuj stát Varšavské smlouvy",
 };
 
 // [zadání, odpověď hráče, očekávaný název (nebo true = jen platí)]
@@ -102,6 +111,19 @@ const MUST = [
   [Q.ryba, "kapr", "Kapr"],
   [Q.papez, "Pius", true],
   [Q.papez, "Jan Pavel II.", true],
+  // doplněná témata: vynechané slovo ze zadání, latinské názvy, varianty
+  [Q.nerv, "zrakový", "Zrakový nerv"],
+  [Q.nerv, "vagus", "Bloudivý nerv"],
+  [Q.heraklos, "hydra", "Lernská hydra"],
+  [Q.heraklos, "augiasuv chlev", "Augiášův chlév"],
+  [Q.amino, "glutamová", "Kyselina glutamová"],
+  [Q.amino, "isoleucin", "Isoleucin"],
+  [Q.trpaslik, "kili", "Kíli"],
+  [Q.anglie, "Man City", "Manchester City"],
+  [Q.brno, "Brno-Bystrc", true],
+  [Q.brno, "kralovo pole", "Královo Pole"],
+  [Q.cimrman, "Vražda v salonním kupé", "Vražda v salonním coupé"],
+  [Q.nemecko, "Steinmeier", "Frank-Walter Steinmeier"],
 ];
 
 const MUST_NOT = [
@@ -127,6 +149,10 @@ const MUST_NOT = [
   [Q.usa, "Tomáš"],
   [Q.f1, "Petr"],
   [Q.kost, ""],
+  [Q.anglie, "Manchester"],  // United, nebo City?
+  [Q.nemecko, "Kohl"],       // kancléř, ne prezident
+  [Q.varsava, "Rusko"],
+  [Q.nerv, "nerv"],
 ];
 
 let fail = 0;

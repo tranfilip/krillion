@@ -12,6 +12,7 @@ const norm = (s) => String(s).toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,
 
 const errs = [];
 if (!Array.isArray(P) || !P.length) errs.push("KRILLION_DATA chybí nebo je prázdné");
+else if (P.length < 250) errs.push(`Krillion: jen ${P.length} témat, cíl je aspoň 250`);
 const qs = new Map();
 P.forEach((row, n) => {
   const [lvl, q, a] = row;
@@ -82,9 +83,9 @@ else {
     else if (Math.max(va, vb) / Math.min(va, vb) < 1.05) errs.push(`${at}: rozdíl ${A[0]} × ${B[0]} je pod 5 %`);
     const key = norm(q + A[0] + B[0]); if (seenX.has(key)) errs.push(`${at}: je dvakrát`); seenX.add(key);
   });
-  if (X.length < 150) errs.push(`HL: jen ${X.length} překvapivých srovnání, cíl je aspoň 150`);
+  if (X.length < 200) errs.push(`HL: jen ${X.length} překvapivých srovnání, cíl je aspoň 200`);
   for (const k of Object.keys(HL.V)) if ((perV.get(k) || 0) < 3) errs.push(`HL veličina ${k}: méně než 3 položky`);
-  if (hlN < 400) errs.push(`HL: jen ${hlN} položek, cíl je aspoň 400`);
+  if (hlN < 800) errs.push(`HL: jen ${hlN} položek, cíl je aspoň 800`);
 }
 
 // ---------- Odhad (data/estimates.js) ----------
@@ -104,7 +105,7 @@ else {
     if (seenQ.has(norm(q))) errs.push(`${q}: otázka je dvakrát`);
     seenQ.add(norm(q));
   });
-  if (E.length < 300) errs.push(`Odhad: jen ${E.length} otázek, cíl je aspoň 300`);
+  if (E.length < 600) errs.push(`Odhad: jen ${E.length} otázek, cíl je aspoň 600`);
 }
 
 const total = P.reduce((s, r) => s + r[2].split(",").length, 0);

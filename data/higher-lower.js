@@ -34,7 +34,10 @@ V:{
  stari:["Co je starší?","let"],
  hvezdy:["Co je dál od Země?","světelných let"],
  delka:["Co je delší?","m"],
- pocet:["Čeho je víc?",""]
+ pocet:["Čeho je víc?",""],
+ zlato:["Kdo má víc olympijských zlatých medailí?","zlatých"],
+ dily:["Který seriál má víc dílů?","dílů"],
+ film:["Který film je delší?","min"]
 },
 G:[
 // ---------- obyvatelé ----------
@@ -278,7 +281,65 @@ G:[
  ["Hráčů fotbalového týmu na hřišti",11],["Hráčů ragbyového týmu na hřišti",15],["Knih o Harrym Potterovi",7],
  ["Beethovenových symfonií",9],["Haydnových symfonií",104],["Písmen anglické abecedy",26],["Států Afriky",54],
  ["Časových pásem Ruska",11],["Žeber člověka",24],["Let ve století",100],["Týdnů v roce",52],
- ["Oscarů za film Titanic",11],["Dílů seriálu Přátelé",236],["Pater Burdž Chalífa",163]]}
+ ["Oscarů za film Titanic",11],["Dílů seriálu Přátelé",236],["Pater Burdž Chalífa",163]]},
+// ---------- doplněno: osobnosti, olympiáda, seriály, filmy, značky ----------
+{f:2,k:["Wolfgang Amadeus Mozart","Albert Einstein","T. G. Masaryk","Václav Havel","Alžběta II.","Napoleon Bonaparte","Elvis Presley","Michael Jackson","Karel Gott","Freddie Mercury","John Lennon","Leonardo da Vinci","Karel IV.","Marilyn Monroe"],
+ h:["Ludvík XIV.","Mikuláš Koperník","Galileo Galilei","Fryderyk Chopin","Giuseppe Verdi","Lev Nikolajevič Tolstoj","Johann Wolfgang Goethe"],
+ v:"vek",c:"Osobnosti",s:"věk v době úmrtí",i:[
+ ["T. G. Masaryk",87],["Václav Havel",75],["Albert Einstein",76],["Wolfgang Amadeus Mozart",35],["Ludwig van Beethoven",56],["Isaac Newton",84],
+ ["Pablo Picasso",91],["Winston Churchill",90],["Alžběta II.",96],["Jan Amos Komenský",78],["Antonín Dvořák",62],["Bedřich Smetana",60],["Franz Kafka",40],
+ ["Napoleon Bonaparte",51],["Julius Caesar",55],["Alexandr Veliký",32],["Elvis Presley",42],["Freddie Mercury",45],["Michael Jackson",50],["Karel Gott",80],
+ ["Marie Curie-Skłodowská",66],["Leonardo da Vinci",67],["Michelangelo",88],["Charles Darwin",73],["Nikola Tesla",86],["Thomas Alva Edison",84],
+ ["Vincent van Gogh",37],["Fryderyk Chopin",39],["Johann Sebastian Bach",65],["Giuseppe Verdi",87],["Johann Wolfgang Goethe",82],["William Shakespeare",52],
+ ["Ernest Hemingway",61],["Lev Nikolajevič Tolstoj",82],["John Lennon",40],["Kurt Cobain",27],["Marilyn Monroe",36],["Princezna Diana",36],["John F. Kennedy",46],
+ ["Abraham Lincoln",56],["Mahátma Gándhí",78],["Nelson Mandela",95],["Steve Jobs",56],["Stephen Hawking",76],["Karel IV.",62],["Marie Terezie",63],
+ ["Královna Viktorie",81],["František Josef I.",86],["Emil Zátopek",78],["Věra Čáslavská",74],["Jan Werich",75],["Bohumil Hrabal",82],["Miloš Forman",86],
+ ["Josef Lada",69],["Karel Čapek",48],["Božena Němcová",41],["Karel Hynek Mácha",25],["Jaroslav Hašek",39],["Alfons Mucha",78],["Papež Jan Pavel II.",84],
+ ["Papež František",88],["Matka Tereza",87],["Martin Luther King",39],["Bruce Lee",32],["Walt Disney",65],["Charlie Chaplin",88],["Agatha Christie",85],
+ ["J. R. R. Tolkien",81],["Galileo Galilei",77],["Mikuláš Koperník",70],["Ludvík XIV.",76]]},
+{f:2,k:["Michael Phelps","Usain Bolt","Věra Čáslavská","Emil Zátopek","Jan Železný","Martina Sáblíková","Simone Bilesová","Dominik Hašek"],
+ h:["Larisa Latyninová","Paavo Nurmi","Birgit Fischerová","Bjørn Dæhlie","Ole Einar Bjørndalen","Marit Bjørgenová","Ian Thorpe","Mark Spitz","Katie Ledecká"],
+ v:"zlato",c:"Olympiáda",s:"zlaté olympijské medaile (do roku 2024)",i:[
+ ["Michael Phelps",23],["Larisa Latyninová",9],["Paavo Nurmi",9],["Mark Spitz",9],["Carl Lewis",9],["Katie Ledecká",9],["Usain Bolt",8],["Birgit Fischerová",8],
+ ["Bjørn Dæhlie",8],["Ole Einar Bjørndalen",8],["Marit Bjørgenová",8],["Věra Čáslavská",7],["Simone Bilesová",7],["Nadia Comăneciová",5],["Ian Thorpe",5],
+ ["Jesse Owens",4],["Emil Zátopek",4],["Michael Johnson",4],["Jan Železný",3],["Martina Sáblíková",3],["Ester Ledecká",3],["Barbora Špotáková",2],
+ ["Dominik Hašek",1],["Kateřina Neumannová",1],["Roman Šebrle",1]]},
+{f:2,k:["Přátelé","Teorie velkého třesku","Hra o trůny","Arabela","Návštěvníci","Nemocnice na kraji města","30 případů majora Zemana","Chalupáři"],
+ h:["Šílenci z Manhattanu","Špína Baltimoru","Koruna","Most!","Sanitka","Žena za pultem"],
+ v:"dily",c:"Seriály",s:"počet dílů (celý seriál)",i:[
+ ["Teorie velkého třesku",279],["Přátelé",236],["Akta X",218],["Jak jsem poznal vaši matku",208],["Kancl (americký)",201],["Dr. House",177],["Ztraceni",121],
+ ["Dexter (původní seriál)",96],["Sex ve městě",94],["Šílenci z Manhattanu",92],["Rodina Sopránů",86],["Hra o trůny",73],["Perníkový táta",62],["Špína Baltimoru",60],
+ ["Koruna",60],["Stranger Things",42],["30 případů majora Zemana",30],["Nemocnice na kraji města",20],["Návštěvníci",15],["Arabela",13],["Sanitka",13],
+ ["Žena za pultem",12],["Chalupáři",9],["Most!",8],["Černobyl",5]]},
+{f:2,k:["Titanic","Avatar","Pán prstenů: Návrat krále","Kmotr","Forrest Gump","Lví král (1994)","Shrek","Harry Potter a Kámen mudrců","Ledové království","Pulp Fiction","Matrix"],
+ h:["Irčan","Schindlerův seznam","Kmotr II","Čelisti","Interstellar"],
+ v:"film",c:"Filmy",s:"délka kinoverze",i:[
+ ["Irčan",209],["Kmotr II",202],["Pán prstenů: Návrat krále",201],["Schindlerův seznam",195],["Titanic",194],["Avatar: The Way of Water",192],["Avengers: Endgame",181],
+ ["Oppenheimer",180],["Kmotr",175],["Interstellar",169],["Avatar",162],["Gladiátor",155],["Pulp Fiction",154],["Temný rytíř",152],["Harry Potter a Kámen mudrců",152],
+ ["Počátek",148],["Forrest Gump",142],["Matrix",136],["Jurský park",127],["Čelisti",124],["Star Wars (1977)",121],["Návrat do budoucnosti",116],["E.T. – Mimozemšťan",115],
+ ["Barbie",114],["Ledové království",102],["Shrek",90],["Lví král (1994)",88],["Sněhurka a sedm trpaslíků (1937)",83],["Toy Story",81]]},
+{f:2,k:["Apple","Microsoft","IKEA","Firma LEGO","Baťa","Tatra","Adidas","Sparta Praha","Slavia Praha","Becherovka","Kofola","Netflix"],
+ h:["Koh-i-noor Hardtmuth","Petrof","Moser","Zetor","Jawa","Guinness","Heineken","Carlsberg","Michelin","Rolex","Harley-Davidson","Levi Strauss & Co."],
+ v:"stari",c:"Značky a kluby",s:"rok založení",y:1,i:[
+ ["Tatra",1850],["Baťa",1894],["Firma LEGO",1932],["IKEA",1943],["Apple",1976],["Microsoft",1975],["Pepsi",1893],["Nokia",1865],["Samsung",1938],["Sony",1946],
+ ["Toyota",1937],["BMW",1916],["Porsche",1931],["Adidas",1949],["Puma",1948],["Levi Strauss & Co.",1853],["The Walt Disney Company",1923],["Netflix",1997],
+ ["Twitter",2006],["Spotify",2006],["Becherovka",1807],["Kofola",1960],["Budějovický Budvar",1895],["Amazon",1994],["Tesla",2003],["Harley-Davidson",1903],
+ ["Rolex",1905],["Michelin",1889],["Heineken",1864],["Guinness",1759],["Carlsberg",1847],["Nestlé",1866],["Ferrero",1946],["Haribo",1920],["Moser",1857],
+ ["Petrof",1864],["Koh-i-noor Hardtmuth",1790],["Zetor",1946],["Jawa",1929],["Sparta Praha",1893],["Slavia Praha",1892],["Real Madrid",1902],
+ ["FC Barcelona",1899],["Manchester United",1878],["Liverpool FC",1892],["Bayern Mnichov",1900],["Juventus",1897]]},
+{f:1,k:["Titanic","Pelíšky","Star Wars","Lví král","Harry Potter a Kámen mudrců","Tři oříšky pro Popelku","Kolja","Pyšná princezna","Avatar","Matrix"],
+ h:["Limonádový Joe","Ať žijí duchové!","Jak vytrhnout velrybě stoličku","Princezna ze mlejna","Anděl Páně"],
+ v:"stari",c:"Filmy",s:"rok premiéry",y:1,i:[
+ ["Sněhurka a sedm trpaslíků (Disney)",1937],["Pyšná princezna",1952],["Limonádový Joe",1964],["Kmotr",1972],["Tři oříšky pro Popelku",1973],["Čelisti",1975],
+ ["Marečku, podejte mi pero!",1976],["Star Wars",1977],["Ať žijí duchové!",1977],["Jak vytrhnout velrybě stoličku",1977],["E.T. – Mimozemšťan",1982],
+ ["S čerty nejsou žerty",1984],["Slunce, seno, jahody",1984],["Vesničko má středisková",1985],["Návrat do budoucnosti",1985],["Obecná škola",1991],
+ ["Jurský park",1993],["Lví král",1994],["Pulp Fiction",1994],["Forrest Gump",1994],["Princezna ze mlejna",1994],["Toy Story",1995],["Kolja",1996],
+ ["Titanic",1997],["Pelíšky",1999],["Matrix",1999],["Gladiátor",2000],["Shrek",2001],["Harry Potter a Kámen mudrců",2001],["Anděl Páně",2005],
+ ["Avatar",2009],["Ledové království",2013],["Oppenheimer",2023]]},
+{f:1,v:"rychlost",c:"Zvířata",s:"nejvyšší rychlost (přibližně)",a:1,min:1.25,i:[
+ ["Rorýs obecný (vodorovný let)",111],["Lev",80],["Chrt",72],["Dostihový kůň",70],["Medvěd hnědý",56],["Slon africký",40],["Tučňák oslí (plavání)",36],["Hroch",30]]},
+{f:2,v:"kofein",c:"Jídlo",s:"obsah kofeinu (přibližně)",a:1,min:1.4,i:[
+ ["Hořká čokoláda 70–85 % (100 g)",80],["Zelený čaj (250 ml)",30],["Mléčná čokoláda (100 g)",20]]}
 ],
 // ---------- překvapivá srovnání: [otázka, jednotka, [A, hodnota], [B, hodnota], zajímavost, {a:1 přibližné, y:1 hodnoty jsou roky vzniku}?]
 X:[
@@ -470,6 +531,57 @@ X:[
 // peníze a technika
 ["Co stálo víc?","USD",["Obraz Salvator Mundi",450300000],["Koupě Aljašky (1867)",7200000],"USA koupily Aljašku za 7,2 milionu dolarů – nominálně 60× méně, než stál jeden obraz.",{}],
 ["Co stálo víc?","USD",["Film Titanic (1997)",200000000],["Stavba lodi Titanic (1912)",7500000],"Nominálně stál film Titanic 26× víc než skutečná loď.",{a:1}],
-["Čeho je víc?","kB",["Paměť RAM v iPhonu 15",6000000],["Paměť RAM počítače Apollo 11",4],"Počítač, který řídil Apollo 11, měl jen asi 4 kB operační paměti.",{a:1}]
+["Čeho je víc?","kB",["Paměť RAM v iPhonu 15",6000000],["Paměť RAM počítače Apollo 11",4],"Počítač, který řídil Apollo 11, měl jen asi 4 kB operační paměti.",{a:1}],
+// doplněno: další překvapivá srovnání
+["Co je starší?","let",["Plzeňský Prazdroj",1842],["Sjednocená Itálie",1861],"Pivo v Plzni se vaří od roku 1842, Italské království vzniklo až v roce 1861.",{y:1}],
+["Co je starší?","let",["Pražský hrad",880],["Moskva",1147],"Pražský hrad založili Přemyslovci kolem roku 880, Moskva je poprvé zmíněna až v roce 1147.",{y:1,a:1}],
+["Co je starší?","let",["Restaurace Sobrino de Botín (Madrid)",1725],["USA",1776],"Nejstarší dosud fungující restaurace světa vaří od roku 1725 – o půl století déle, než existují USA.",{y:1}],
+["Co je starší?","let",["Nokia",1865],["Telefon",1876],"Nokia vznikla v roce 1865 jako papírna, Bellův telefon přišel až o 11 let později.",{y:1}],
+["Co je starší?","let",["Harvardova univerzita",1636],["Newtonův gravitační zákon",1687],"Harvard učil už půl století předtím, než Newton vydal zákon všeobecné gravitace.",{y:1}],
+["Co je starší?","let",["Pivovar Weihenstephan",1040],["Oxfordská univerzita",1096],"Bavorský pivovar Weihenstephan vaří od roku 1040 – je starší než Oxfordská univerzita.",{y:1,a:1}],
+["Co je starší?","let",["Becherovka",1807],["Coca-Cola",1886],"Becherovka se vyrábí od roku 1807, Coca-Cola vznikla o 79 let později.",{y:1}],
+// lidé a místa
+["Kde žije víc lidí?","obyvatel",["Moskva",13100000],["Česko",10900000],"Moskva má víc obyvatel než celé Česko.",{a:1}],
+["Kde žije víc lidí?","obyvatel",["Rakousko",9200000],["Město New York",8300000],"New York má sice obrovskou aglomeraci, samotné město je ale menší než Rakousko.",{a:1}],
+["Kde žije víc lidí?","obyvatel",["Istanbul",15700000],["Belgie",11800000],"V Istanbulu žije víc lidí než v celé Belgii.",{a:1}],
+["Kde žije víc lidí?","obyvatel",["Egypt",107000000],["Německo",84000000],"Egypt má o čtvrtinu víc obyvatel než Německo.",{a:1}],
+["Kde žije víc lidí?","obyvatel",["DR Kongo",110000000],["Německo",84000000],"Demokratická republika Kongo má víc obyvatel než Německo.",{a:1}],
+["Kde žije víc lidí?","obyvatel",["Etiopie",132000000],["Japonsko",124000000],"Etiopie už předběhla Japonsko – a dál rychle roste.",{a:1}],
+["Kde žije víc lidí?","obyvatel",["Irák",46000000],["Kanada",41000000],"Irák má víc obyvatel než rozlehlá Kanada.",{a:1}],
+["Čeho je víc?","lidí",["Lidí v Asii",4800000000],["Lidí na všech ostatních kontinentech",3400000000],"V Asii žije víc než polovina lidstva.",{a:1}],
+// rozloha
+["Co má větší rozlohu?","km²",["Brazílie",8515767],["USA bez Aljašky a Havaje",8080464],"Brazílie je větší než celé sousedící území USA.",{}],
+["Co má větší rozlohu?","km²",["Ukrajina",603550],["Francie (evropská část)",551695],"Ukrajina je největší stát, který leží celý v Evropě.",{}],
+["Co má větší rozlohu?","km²",["Antarktida",14200000],["Evropa",10180000],"Antarktida je asi o 40 % větší než celá Evropa.",{a:1}],
+["Co má větší rozlohu?","km²",["Jihočeský kraj",10057],["Kypr",9251],"Jihočeský kraj je větší než celý stát Kypr.",{}],
+["Co má větší rozlohu?","km²",["Česko",78871],["Irsko",70273],"Česko je větší než Irsko.",{}],
+["Co má větší rozlohu?","km²",["USA",9833520],["Sahara",9200000],"Sahara je skoro tak velká jako USA.",{a:1}],
+// výška, hloubka, délka
+["Co je výš nad mořem?","m n. m.",["Vrchol Petřínské rozhledny",390],["Vrchol Eiffelovy věže",363],"Petřín stojí na kopci, takže vrchol rozhledny je výš nad mořem než špička Eiffelovy věže.",{a:1}],
+["Kde je víc metrů?","m",["Hloubka Bajkalu",1642],["Výška Pradědu",1491],"Bajkal je hlubší, než je Praděd vysoký.",{}],
+["Kde je víc metrů?","m",["Hloubka Grand Canyonu",1800],["Výška Sněžky",1603],"Grand Canyon je místy hlubší, než je Sněžka vysoká.",{a:1}],
+["Co je delší?","m",["Pražský hrad",570],["Karlův most",516],"Areál Pražského hradu je delší než Karlův most.",{}],
+["Co je delší?","m",["DNA z jedné lidské buňky (natažená)",2],["Dospělý člověk",1.75],"Kdyby se natáhla DNA z jediné buňky, byla by delší, než je člověk vysoký.",{a:1}],
+// rychlost a čas
+["Co je rychlejší?","km/h",["Badmintonový míček (rekordní smeč)",565],["Formule 1 (rekord v závodě)",372.6],"Při nejrychlejší smeči letěl badmintonový míček rychlostí 565 km/h – rychleji než formule 1.",{}],
+["Co je rychlejší?","km/h",["Dopravní letadlo (cestovní)",910],["Tsunami na otevřeném oceánu",800],"Tsunami se na otevřeném oceánu šíří skoro rychlostí dopravního letadla.",{a:1}],
+["Co je rychlejší?","km/h",["Usain Bolt",44.7],["Slon africký",40],"Bolt je rychlejší, ale slon africký by mu na krátké trati moc nedaroval.",{a:1}],
+["Co trvá déle?","s",["První motorový let bratří Wrightů",12],["Boltův světový rekord na 100 m",9.58],"První let letadla s motorem trval jen 12 sekund – o málo déle, než Bolt uběhne stovku.",{}],
+["Co je teplejší?","°C",["Plamen svíčky (nejteplejší místo)",1400],["Čedičová láva",1150],"Nejteplejší část plamene obyčejné svíčky je teplejší než tekoucí láva.",{a:1}],
+// tělo, zvířata, jídlo
+["Čeho je víc?","kostí",["Kostí v obou chodidlech",52],["Kostí v páteři",33],"Asi čtvrtina všech kostí lidského těla je v chodidlech.",{}],
+["Čeho je víc?","srdcí",["Srdcí žížaly",5],["Srdcí chobotnice",3],"Žížala má pět párů tepajících cév, kterým se říká srdce.",{}],
+["Co má víc vápníku?","mg",["Mák (100 g)",1438],["Mléko (100 ml)",120],"Mák má na 100 gramů asi dvanáctkrát víc vápníku než mléko.",{a:1}],
+["Co má víc bílkovin?","g",["Arašídy (100 g)",25.8],["Libové hovězí, syrové (100 g)",21],"Arašídy mají na 100 gramů víc bílkovin než hovězí maso.",{a:1}],
+["Co má větší vodní stopu na 1 kg?","l vody",["Čokoláda",17000],["Hovězí maso",15400],"Na kilogram čokolády padne ještě víc vody než na kilogram hovězího – hlavně kvůli pěstování kakaa.",{a:1}],
+["Co má víc kalorií?","kcal",["Plechovka Coca-Coly (0,33 l)",139],["Banán (100 g)",89],"Jedna plechovka koly má víc kalorií než banán.",{}],
+// vesmír, sport, peníze
+["Co je těžší (stejný objem)?","kg/m³",["Voda",1000],["Saturn (průměrná hustota)",687],"Saturn má menší průměrnou hustotu než voda – ve dost velké vaně by plaval.",{}],
+["Kdo má víc olympijských zlatých medailí?","zlatých",["Michael Phelps",23],["Celá Indie (všechny letní OH)",10],"Michael Phelps sám vyhrál víc olympijských zlatých medailí než celá Indie za všechny hry.",{}],
+["Co stálo víc?","USD",["Koupě Twitteru (2022)",44000000000],["Program Apollo (v tehdejších cenách)",25800000000],"Elon Musk zaplatil za Twitter víc dolarů, než stál celý program Apollo v tehdejších cenách.",{a:1}],
+["Kdo se dožil vyššího věku?","let",["Kočka Creme Puff",38],["Wolfgang Amadeus Mozart",35],"Nejstarší kočka historie žila déle než Mozart.",{}],
+["Kdo se dožil vyššího věku?","let",["Papoušek kakadu Cookie",83],["Albert Einstein",76],"Kakadu Cookie z chicagské zoo se dožil 83 let – víc než Einstein.",{}],
+["Který seriál má víc dílů?","dílů",["Teorie velkého třesku",279],["Přátelé",236],"Teorie velkého třesku má o 43 dílů víc než Přátelé.",{}],
+["Který film je delší?","min",["Irčan",209],["Titanic",194],"Scorseseho Irčan je ještě delší než Titanic – trvá 3 a půl hodiny.",{}]
 ]
 };
