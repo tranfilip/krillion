@@ -1,5 +1,5 @@
 // Testy režimů „Vyšší, nebo nižší?“ a „Odhad“. Spuštění: npm test
-// Z src/game.js vyřízne blok „režimy: čísla, hodnocení a výběr“ (po značku „konec režimů“),
+// Z src/data.js vyřízne blok „režimy: čísla, hodnocení a výběr“ (po značku „konec režimů“),
 // takže testuje přesně ten kód, který běží ve hře.
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -7,9 +7,9 @@ import { fileURLToPath } from "node:url";
 const root = fileURLToPath(new URL("..", import.meta.url));
 const window = {};
 for (const f of ["data/higher-lower.js", "data/estimates.js"]) new Function("window", readFileSync(root + f, "utf8"))(window);
-const src = readFileSync(root + "src/game.js", "utf8");
+const src = ["src/data.js"].map((f) => readFileSync(root + f, "utf8")).join("\n");
 const a = src.indexOf("/* ---------- režimy: čísla"), b = src.indexOf("/* ---------- konec režimů");
-if (a < 0 || b < 0) throw new Error("V src/game.js chybí blok režimů");
+if (a < 0 || b < 0) throw new Error("V src/data.js chybí blok režimů");
 const M = new Function("window", src.slice(a, b) + "\nreturn{parseNum,estScore,estDiff,fmtNum,fmtU,fmtHL,loadModes,saveModes,pickPair,pickEst,hlLvl,pairLevel,hlPoints,streakBonus,HLI,HLV,HLX,ESTQ};")(window);
 
 let fail = 0;

@@ -1,5 +1,5 @@
 // Testy rozpoznávání odpovědí (localJudge). Spuštění: npm test
-// Načte data/questions.js a z src/game.js vyřízne část od `const norm=` po `const tierFromPct`,
+// Načte data/questions.js a z src/rozpoznavani.js vyřízne část od `const norm=` po `const tierFromPct`,
 // takže testuje přesně ten kód, který běží ve hře.
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -7,9 +7,9 @@ import { fileURLToPath } from "node:url";
 const root = fileURLToPath(new URL("..", import.meta.url));
 const window = {};
 new Function("window", readFileSync(root + "data/questions.js", "utf8"))(window);
-const src = readFileSync(root + "src/game.js", "utf8");
+const src = ["src/rozpoznavani.js"].map((f) => readFileSync(root + f, "utf8")).join("\n");
 const a = src.indexOf("const norm="), b = src.indexOf("const tierFromPct");
-if (a < 0 || b < 0) throw new Error("V src/game.js nejde najít blok rozpoznávání");
+if (a < 0 || b < 0) throw new Error("V src/rozpoznavani.js nejde najít blok rozpoznávání");
 const { localJudge, stem, norm } = new Function("P", "window", src.slice(a, b) + "\nreturn{localJudge,looseLocal,stem,norm};")(window.KRILLION_DATA, window);
 
 // název odpovědi i se všemi jejími variantami (Arabská káva = Arabská = Káva po arabsku)

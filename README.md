@@ -13,7 +13,12 @@ Každý režim má vlastní rekord a otázky se neopakují ani mezi hrami.
 ```
 index.html          stránka hry
 styles.css          vzhled (tekuté sklo, HUD, karty)
-src/game.js         logika hry, vykreslování oceánu, potápěč, výběr otázek
+src/rozpoznavani.js rozpoznávání odpovědí (překlepy, tvary slov, neúplné odpovědi)
+src/data.js         paměť a výběr otázek všech režimů, hodnocení odhadu, ukládání
+src/claude.js       napojení na Clauda (vymýšlení zadání a hodnocení odpovědí)
+src/vykreslovani.js oceán na canvasu, živočichové, potápěč, loď a seskok
+src/ui.js           karta, HUD, úvodní obrazovka, režim Krillion, časový pruh
+src/rezimy.js       režimy Vyšší, nebo nižší? a Odhad
 src/shim.js         napojení na Clauda přes /api/ai (mimo claude.ai)
 data/questions.js   témata a odpovědi režimu Krillion (209 témat s úplným výčtem odpovědí)
 data/higher-lower.js položky režimu Vyšší, nebo nižší? (803 položek, 25 veličin, 179 překvapivých srovnání)
@@ -64,7 +69,7 @@ kategorie, otázka, skutečná hodnota (kladné číslo), jednotka ve správném
 
 ```bash
 npm run dev          # jen hra, bez Clauda (vestavěné seznamy)
-npm test             # testy rozpoznávání, výběru témat a kontrola dat
+npm test             # syntaxe skriptů, testy rozpoznávání, výběru témat, režimů a kontrola dat
 npm run dev:ai       # hra i s Claudem (potřebuje Vercel CLI a .env.local s klíčem)
 ```
 
