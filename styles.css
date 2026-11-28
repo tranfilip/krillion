@@ -36,6 +36,11 @@ body{margin:0;color:var(--ink);font:16px/1.45 -apple-system,BlinkMacSystemFont,"
 .rail{position:fixed;right:max(12px,env(safe-area-inset-right));top:42%;transform:translateY(-50%);width:7px;height:min(40vh,380px);--r:9px;z-index:2;transition:opacity .3s}
 .rail b{position:absolute;left:50%;width:15px;height:15px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff,#bff6ff 60%,#6fd8ec);transform:translate(-50%,-50%);box-shadow:0 0 16px #9ff,0 0 0 4px rgba(255,255,255,.12)}
 .kb .rail{opacity:0}
+/* jednotné vnořené sklo a písmo ve všech režimech (pravidla mají vyšší specifitu, protože stojí před původními) */
+.card .mults button,.card .chips span{font-variant-numeric:tabular-nums}
+.card .mults button:not(.on){background:linear-gradient(180deg,rgba(255,255,255,.17),rgba(255,255,255,.05));box-shadow:inset 0 1px 1px rgba(255,255,255,.6),inset 0 0 0 1px rgba(255,255,255,.14)}
+.card .fact,.card .er{font-size:14px}.card .src,.card .er .ev{font-size:12.5px}
+.card .qn{letter-spacing:.01em}.card .tier{font-weight:800}
 
 .stage{position:fixed;left:0;right:0;top:0;height:100%;display:flex;align-items:flex-end;justify-content:center;padding:76px 16px max(20px,env(safe-area-inset-bottom));z-index:2}
 .kb .stage{padding:64px 12px 10px}

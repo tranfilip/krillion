@@ -268,7 +268,9 @@ const glow=Array.from({length:55},()=>({x:Math.random(),y:Math.random(),p:Math.r
 const bub=[],sparks=[];
 // [druh, hloubka, x (0–1), rychlost driftu px/s (0 = vlní se na místě)]
 const LIFE=[["school",60,.2,22],["barracuda",130,.75,-30],["turtle",200,.8,-12],["manta",300,.3,16],["school",380,.7,-26],["shark",480,.6,-34],["whale",650,.4,10],["jelly",880,.22,0],["lantern",1150,.6,20],["jelly",1300,.8,0],["hatchet",1700,.3,-14],["squid",2050,.34,0],["vampire",2600,.72,0],["eel",3100,.25,18],["siph",3500,.25,0],["dumbo",3900,.7,0],["angler",4300,.3,0],["lantern",4700,.55,-18],["jelly",5000,.8,0],["angler",5500,.74,0],["snail",6400,.38,8],["dumbo",7000,.25,0],["siph",7400,.7,0],["eel",8200,.6,-16],["jelly",8800,.26,0],["angler",9300,.66,0],["snail",10200,.3,6],["siph",11200,.6,0],["angler",12400,.3,0],["vampire",13300,.7,0],["dumbo",14600,.4,0]];
-let depth=0,target=0,lastT=0,kick=0,hurt=0,ease=1000,nextBreath=0,dyS=170;
+// další druhy: útesové rybky, hlubinná ryba s průhlednou hlavou, vorvaň, přízračnice, různonožci v příkopu
+LIFE.push(["reeffish",70,.16,0],["reeffish",185,.2,0],["barreleye",760,.68,-10],["sperm",1250,.32,14],["chimera",2300,.7,-12],["amphipod",8600,.5,0],["amphipod",10500,.42,0]);
+let depth=0,target=0,lastT=0,kick=0,hurt=0,ease=1000,nextBreath=0,dyS=170,tiltV=0;
 function px(xf,spd,t,d){if(!spd)return W*xf+Math.sin(t/2800+d)*W*.06;const span=W+520;return((W*xf+spd*t/1000)%span+span)%span-260}
 const FG={};function fgrad(c1,c2){const k=c1+c2;if(!FG[k]){const g=cx.createLinearGradient(0,-4,0,4);g.addColorStop(0,c1);g.addColorStop(1,c2);FG[k]=g}return FG[k]}
 function fish(x,y,s,a,dir,c1,c2){cx.save();cx.translate(x,y);cx.scale(dir*s,s);cx.fillStyle=fgrad(c1||`rgba(235,252,255,${a})`,c2||`rgba(130,185,215,${a*.75})`);cx.beginPath();cx.moveTo(11,0);cx.quadraticCurveTo(6,-4.5,-4,-3.6);cx.quadraticCurveTo(-8,-1.5,-9,0);cx.quadraticCurveTo(-8,1.5,-4,3.6);cx.quadraticCurveTo(6,4.5,11,0);cx.fill();cx.beginPath();cx.moveTo(-8,0);cx.lineTo(-15,-5);cx.lineTo(-13,0);cx.lineTo(-15,5);cx.fill();cx.fillStyle=`rgba(255,255,255,${a*.5})`;cx.fillRect(-4,-.6,12,.9);cx.fillStyle=`rgba(5,20,35,${a})`;cx.beginPath();cx.arc(7,-1,1,0,7);cx.fill();cx.restore()}
@@ -290,6 +292,140 @@ function creature(k,x,y,t,d,lum,dir){
  else if(k==="angler"){cx.save();cx.translate(x,y);cx.scale(dir||1,1);const ag=cx.createRadialGradient(6,-6,4,0,0,40);ag.addColorStop(0,"rgba(50,44,58,.95)");ag.addColorStop(1,"rgba(8,8,12,.92)");cx.fillStyle=ag;cx.beginPath();cx.moveTo(36,6);cx.quadraticCurveTo(34,-26,0,-26);cx.quadraticCurveTo(-30,-22,-34,0);cx.quadraticCurveTo(-30,22,0,24);cx.quadraticCurveTo(26,24,36,10);cx.fill();cx.beginPath();cx.moveTo(-30,0);cx.lineTo(-56,-18);cx.quadraticCurveTo(-48,0,-56,18);cx.fill();cx.fillStyle="rgba(12,10,16,.95)";cx.beginPath();cx.moveTo(36,6);cx.lineTo(10,10);cx.lineTo(34,14);cx.fill();cx.strokeStyle="rgba(240,240,230,.75)";cx.lineWidth=1.1;for(let i=0;i<6;i++){cx.beginPath();cx.moveTo(14+i*3.6,7);cx.lineTo(15+i*3.6,1);cx.moveTo(14+i*3.6,11);cx.lineTo(15+i*3.6,16);cx.stroke()}cx.fillStyle="rgba(200,220,255,.35)";cx.beginPath();cx.arc(16,-8,3.4,0,7);cx.fill();cx.strokeStyle="rgba(255,255,255,.25)";cx.beginPath();cx.moveTo(14,-22);cx.quadraticCurveTo(30,-56,52,-38);cx.stroke();cx.restore()}
  else if(k==="snail"){cx.save();cx.translate(x,y);cx.scale(dir||1,1);const sg=cx.createLinearGradient(0,-12,0,12);sg.addColorStop(0,"rgba(255,230,240,.5)");sg.addColorStop(1,"rgba(230,180,200,.35)");cx.fillStyle=sg;cx.beginPath();cx.ellipse(0,0,32,12,0,0,7);cx.fill();cx.beginPath();cx.moveTo(-28,-3);cx.quadraticCurveTo(-58,-6+Math.sin(t/420)*7,-76,0);cx.quadraticCurveTo(-58,6,-28,5);cx.fill();cx.fillStyle="rgba(20,0,10,.6)";cx.beginPath();cx.arc(20,-3,2,0,7);cx.fill();cx.restore()}}
 function lure(x,y,t,dir){const lx=x+(dir||1)*52,gl=.65+Math.sin(t/280)*.35;cx.save();cx.shadowBlur=36;cx.shadowColor="#ffd36e";cx.fillStyle=`rgba(255,228,150,${gl})`;cx.beginPath();cx.arc(lx,y-38,5,0,7);cx.fill();cx.globalAlpha=gl*.15;cx.beginPath();cx.arc(lx,y-38,30,0,7);cx.fill();cx.restore()}
+/* ---------- další živočichové (bez úprav původní funkce creature: neznámé druhy obslouží CR2) ---------- */
+// barevné rybky útesu: sprite pro každou barvu a směr, pak jen drawImage
+const TFS=new Map();function tinySpr(c,dir){const k=c+dir;let s=TFS.get(k);if(s)return s;s=document.createElement("canvas");s.width=60;s.height=30;const b=s.getContext("2d");b.setTransform(3*dir,0,0,3,30,15);
+ b.fillStyle=c;b.beginPath();b.moveTo(7,0);b.quadraticCurveTo(3,-4.5,-3,-3.2);b.quadraticCurveTo(-6,-1,-6,0);b.quadraticCurveTo(-6,1,-3,3.2);b.quadraticCurveTo(3,4.5,7,0);b.fill();
+ b.beginPath();b.moveTo(-5,0);b.lineTo(-9.5,-3.6);b.lineTo(-9.5,3.6);b.fill();b.fillStyle="rgba(255,255,255,.55)";b.fillRect(-1,-3.2,1.3,6.4);b.fillStyle="#0a1520";b.beginPath();b.arc(4.2,-.8,.8,0,7);b.fill();TFS.set(k,s);return s}
+const REEFC=["#ffb347","#5fd0ff","#ff7aa8","#ffe066","#8ef0c6"];
+const CR2={
+ // hejnko barevných útesových ryb, které kličkuje u korálů
+ reeffish(x,y,t,d,lum,dir){if(S.m!=="dive"&&S.m!=="roll")return;for(let i=0;i<11;i++){const a=i*1.9+t/1700,r=10+(i*17)%34,fx=x+Math.cos(a)*r*1.3,fy=y+Math.sin(a*1.3)*r*.5,dr=Math.cos(a)>0?-1:1;cx.drawImage(tinySpr(REEFC[i%5],dr),fx-10,fy-5,20,10)}},
+ // hlubinná ryba s průhlednou hlavou (Macropinna): zelené oči uvnitř skleněné kopule
+ barreleye(x,y,t,d,lum,dir){cx.save();cx.translate(x,y+Math.sin(t/900)*4);cx.scale(dir,1);cx.fillStyle="rgba(70,80,95,.92)";cx.beginPath();cx.moveTo(14,2);cx.quadraticCurveTo(8,-7,-10,-5);cx.quadraticCurveTo(-18,-1,-22,0);cx.quadraticCurveTo(-18,4,-10,6);cx.quadraticCurveTo(6,9,14,2);cx.fill();
+  cx.beginPath();cx.moveTo(-20,0);cx.lineTo(-30,-7+Math.sin(t/300)*2);cx.lineTo(-27,0);cx.lineTo(-30,7+Math.sin(t/300)*2);cx.fill();
+  cx.fillStyle="rgba(200,240,255,.16)";cx.strokeStyle="rgba(210,245,255,.45)";cx.lineWidth=1;cx.beginPath();cx.ellipse(6,-7,10,7,0,Math.PI,0);cx.closePath();cx.fill();cx.stroke();
+  cx.fillStyle="#7dff9a";cx.beginPath();cx.arc(5,-8,2.4,0,7);cx.arc(9,-8,2.4,0,7);cx.fill();cx.fillStyle="rgba(140,90,70,.8)";cx.fillRect(-2,4,9,3);cx.restore()},
+ // vorvaň: hranatá hlava, vrásčitá kůže; loví v hloubce kolem 1 000 m
+ sperm(x,y,t,d,lum,dir){cx.save();cx.translate(x,y);cx.scale(dir,1);cx.rotate(.12+Math.sin(t/2600)*.03);const tf=Math.sin(t/1200)*9;
+  cx.fillStyle=gcache2("sperm",()=>{const g=cx.createLinearGradient(0,-40,0,40);g.addColorStop(0,"rgba(58,62,72,.95)");g.addColorStop(.6,"rgba(40,44,52,.95)");g.addColorStop(1,"rgba(80,86,96,.85)");return g});
+  cx.beginPath();cx.moveTo(150,-30);cx.quadraticCurveTo(160,-31,160,-14);cx.lineTo(158,18);cx.quadraticCurveTo(150,34,110,30);cx.quadraticCurveTo(10,30,-90,12);cx.quadraticCurveTo(-140,4,-170,2);cx.lineTo(-170,-4);cx.quadraticCurveTo(-120,-16,-60,-26);cx.quadraticCurveTo(40,-38,150,-30);cx.fill();
+  cx.beginPath();cx.moveTo(-166,0);cx.quadraticCurveTo(-188,-8,-214,-30+tf);cx.quadraticCurveTo(-200,-4,-206,0);cx.quadraticCurveTo(-200,4,-216,28+tf);cx.quadraticCurveTo(-188,8,-166,3);cx.fill();
+  cx.beginPath();cx.moveTo(70,20);cx.quadraticCurveTo(52,44,30,46);cx.quadraticCurveTo(46,30,50,22);cx.fill();
+  cx.strokeStyle="rgba(150,160,175,.18)";cx.lineWidth=1.2;cx.beginPath();for(let i=0;i<9;i++){const xx=40-i*22;cx.moveTo(xx,-24+i*.8);cx.quadraticCurveTo(xx-6,-4,xx+2,14-i*.6)}cx.stroke();
+  cx.strokeStyle="rgba(15,18,22,.55)";cx.lineWidth=1.6;cx.beginPath();cx.moveTo(156,16);cx.quadraticCurveTo(120,22,92,20);cx.stroke();
+  cx.fillStyle="#0b0d10";cx.beginPath();cx.arc(104,6,2.6,0,7);cx.fill();cx.restore()},
+ // přízračnice (chiméra): stříbrná „duchová“ ryba s velkýma očima a bičovitým ocasem
+ chimera(x,y,t,d,lum,dir){cx.save();cx.translate(x,y+Math.sin(t/1100)*5);cx.scale(dir,1);const w=Math.sin(t/420);
+  cx.fillStyle="rgba(196,206,218,.85)";cx.beginPath();cx.moveTo(34,0);cx.quadraticCurveTo(30,-12,10,-10);cx.quadraticCurveTo(-20,-7,-40,-1);cx.lineTo(-40,2);cx.quadraticCurveTo(-10,8,12,9);cx.quadraticCurveTo(30,9,34,0);cx.fill();
+  cx.beginPath();cx.moveTo(8,4);cx.quadraticCurveTo(-4,22+w*4,-22,26+w*5);cx.quadraticCurveTo(-8,12,-4,5);cx.fill();cx.beginPath();cx.moveTo(4,-9);cx.lineTo(-2,-22);cx.lineTo(-8,-8);cx.fill();
+  cx.strokeStyle="rgba(196,206,218,.7)";cx.lineWidth=1.6;cx.beginPath();cx.moveTo(-40,0);cx.quadraticCurveTo(-60,4*w,-82,-2*w);cx.quadraticCurveTo(-96,-5*w,-108,2);cx.stroke();
+  cx.fillStyle="#e9fbff";cx.beginPath();cx.arc(22,-3,4.2,0,7);cx.fill();cx.fillStyle="#0b1622";cx.beginPath();cx.arc(23,-3,2.6,0,7);cx.fill();cx.restore()},
+ // trojnožka (tripod fish): stojí na dně na třech dlouhých ploutvích a čeká na potravu
+ tripod(x,y,t,d,lum,dir){cx.save();cx.translate(x,y);cx.scale(dir,1);cx.strokeStyle="rgba(200,190,170,.7)";cx.lineWidth=1.1;cx.beginPath();cx.moveTo(4,0);cx.lineTo(8,26);cx.moveTo(-2,1);cx.lineTo(-5,26);cx.moveTo(-14,0);cx.lineTo(-24,25);cx.moveTo(14,-3);cx.lineTo(30,-16);cx.moveTo(12,-3);cx.lineTo(26,-22);cx.stroke();
+  cx.fillStyle="rgba(150,140,125,.92)";cx.beginPath();cx.moveTo(16,-2);cx.quadraticCurveTo(10,-8,-6,-5);cx.quadraticCurveTo(-18,-3,-28,-1);cx.lineTo(-28,1);cx.quadraticCurveTo(-12,4,4,3);cx.quadraticCurveTo(14,3,16,-2);cx.fill();cx.fillStyle="#1a1410";cx.beginPath();cx.arc(11,-3,1.2,0,7);cx.fill();cx.restore()},
+ // sumýš (mořská okurka) na dně
+ cuke(x,y,t,d,lum,dir){cx.save();cx.translate(x,y);const p=Math.sin(t/1400+d)*.06;cx.fillStyle="rgba(235,140,170,.6)";cx.beginPath();cx.ellipse(0,0,22*(1+p),8*(1-p),0,0,7);cx.fill();
+  cx.fillStyle="rgba(255,190,210,.55)";cx.beginPath();for(let i=0;i<6;i++){const xx=-15+i*6;cx.moveTo(xx+2,-7);cx.arc(xx,-7-Math.sin(t/500+i)*1.5,2,0,7)}cx.fill();cx.restore()},
+ // roj hadalních různonožců (drobní korýši v nejhlubších příkopech)
+ amphipod(x,y,t,d,lum,dir){cx.fillStyle="rgba(240,225,200,.75)";cx.beginPath();for(let i=0;i<26;i++){const a=i*2.39+t/(900+(i%5)*120),r=8+(i*13)%60,fx=x+Math.cos(a)*r*1.4,fy=y+Math.sin(a*1.1)*r*.7;cx.moveTo(fx+2.2,fy);cx.ellipse(fx,fy,2.2,1.1,a,0,7)}cx.fill()}};
+const gcache2=(k,f)=>{const m=gcache2.m||(gcache2.m=new Map());let g=m.get(k);if(!g){g=f();m.set(k,g)}return g};
+{const base=creature;creature=function(k,x,y,t,d,lum,dir){const f=CR2[k];if(f)f(x,y,t,d,lum,dir);else base(k,x,y,t,d,lum,dir)}}
+
+/* ---------- krajina podle hloubky (kreslí se za živočichy): korálový útes, šelf s vrakem, hydrotermální průduchy,
+   vrak zaoceánské lodi, propastná pláň a hadalský příkop. Statické části jsou předkreslené sprity, v každém snímku
+   se jen posouvají; zdi příkopu jsou jeden polygon na stranu. ---------- */
+let SCN=null;const SCNK={k:""};
+const srand=s=>()=>((s=(s*16807)%2147483647)/2147483647);
+function sceneSprites(){const k=W+"x"+H;if(SCNK.k===k)return SCN;SCNK.k=k;const mp=H/900,rnd=srand(7);
+ const mk=(w,h,f)=>{const c=document.createElement("canvas");c.width=Math.ceil(w);c.height=Math.ceil(h);f(c.getContext("2d"),c.width,c.height);return c};
+ // útes vlevo: 20–270 m
+ const RW=Math.min(270,W*.46),RH=250*mp;
+ const reef=mk(RW,RH,(b,w,h)=>{const g=b.createLinearGradient(0,0,w,0);g.addColorStop(0,"rgba(10,40,62,.95)");g.addColorStop(1,"rgba(22,78,100,.9)");b.fillStyle=g;
+  b.beginPath();b.moveTo(0,0);for(let i=0;i<=24;i++){const yy=h*i/24,bulge=Math.sin(i*.55)*.18+Math.sin(i*1.7)*.06,xx=w*(.28+.5*Math.sin(Math.PI*i/24)+bulge*(.4+i/40));b.lineTo(Math.max(6,Math.min(w-4,xx)),yy)}b.lineTo(0,h);b.closePath();b.fill();
+  // korály a houby po okraji útesu
+  for(let i=1;i<24;i++){const yy=h*i/24,edge=w*(.28+.5*Math.sin(Math.PI*i/24)+(Math.sin(i*.55)*.18+Math.sin(i*1.7)*.06)*(.4+i/40)),ex=Math.max(10,Math.min(w-8,edge))-6,kind=i%4,fade=1-i/30;
+   if(kind===0){b.strokeStyle=`rgba(255,${140+(i*9)%60},120,${.8*fade})`;b.lineWidth=2.2;b.lineCap="round";b.beginPath();for(let j=0;j<5;j++){const a=-Math.PI/2+(j-2)*.42;b.moveTo(ex,yy);const mx=ex+Math.cos(a)*9,my=yy+Math.sin(a)*9;b.lineTo(mx,my);b.lineTo(mx+Math.cos(a-.4)*6,my+Math.sin(a-.4)*6);b.moveTo(mx,my);b.lineTo(mx+Math.cos(a+.4)*6,my+Math.sin(a+.4)*6)}b.stroke()}
+   else if(kind===1){b.fillStyle=`rgba(230,190,120,${.85*fade})`;b.beginPath();b.ellipse(ex,yy,9,6.5,0,0,7);b.fill();b.strokeStyle=`rgba(150,110,60,${.6*fade})`;b.lineWidth=1;b.beginPath();for(let j=-2;j<=2;j++){b.moveTo(ex-7,yy+j*2.2);b.quadraticCurveTo(ex,yy+j*2.2-2,ex+7,yy+j*2.2)}b.stroke()}
+   else if(kind===2){b.strokeStyle=`rgba(190,120,230,${.7*fade})`;b.lineWidth=1;b.beginPath();for(let j=0;j<9;j++){const a=-Math.PI/2+(j-4)*.17;b.moveTo(ex,yy);b.lineTo(ex+Math.cos(a)*18,yy+Math.sin(a)*18)}b.stroke();b.beginPath();b.arc(ex,yy,18,-Math.PI/2-.7,-Math.PI/2+.7);b.stroke()}
+   else{b.fillStyle=`rgba(255,220,90,${.75*fade})`;for(let j=0;j<3;j++){b.beginPath();b.roundRect(ex-6+j*5,yy-10-j*3,4,10+j*3,2);b.fill()}}}
+  // světlé skvrny od slunce (kaustika) na horní části útesu
+  b.globalCompositeOperation="source-atop";const lg=b.createLinearGradient(0,0,0,h);lg.addColorStop(0,"rgba(180,240,255,.25)");lg.addColorStop(.5,"rgba(120,200,240,.05)");lg.addColorStop(1,"rgba(0,20,40,.4)");b.fillStyle=lg;b.fillRect(0,0,w,h)});
+ // šelf s vrakem malé lodi vpravo: 240–420 m
+ const SW=Math.min(330,W*.52),SH=180*mp;
+ const shelf=mk(SW,SH,(b,w,h)=>{const top=h*.28;b.fillStyle="rgba(14,52,80,.92)";b.beginPath();b.moveTo(w,top-6);for(let i=0;i<=16;i++){const xx=w-w*i/16,yy=top+Math.sin(i*1.3)*3+(i>12?(i-12)*h*.05:0);b.lineTo(xx,yy)}b.lineTo(w*.02,h);b.lineTo(w,h);b.closePath();b.fill();
+  b.fillStyle="rgba(150,170,160,.35)";b.fillRect(w*.2,top-2,w*.8,3);
+  // vrak: nakloněný trup, zlomený stěžeň, okénka
+  b.save();b.translate(w*.6,top-8);b.rotate(-.16);b.fillStyle="rgba(40,58,68,.95)";b.beginPath();b.moveTo(-w*.28,0);b.lineTo(w*.26,0);b.quadraticCurveTo(w*.33,-2,w*.35,-14);b.lineTo(w*.2,-18);b.lineTo(-w*.24,-16);b.quadraticCurveTo(-w*.3,-10,-w*.28,0);b.fill();
+  b.fillStyle="rgba(60,80,90,.95)";b.fillRect(-w*.1,-28,w*.16,12);b.strokeStyle="rgba(60,80,90,.95)";b.lineWidth=3;b.beginPath();b.moveTo(w*.12,-18);b.lineTo(w*.17,-52);b.lineTo(w*.22,-46);b.stroke();
+  b.fillStyle="rgba(0,10,20,.7)";for(let j=0;j<5;j++){b.beginPath();b.arc(-w*.18+j*w*.08,-9,2.2,0,7);b.fill()}
+  b.strokeStyle="rgba(140,110,80,.55)";b.lineWidth=1;b.beginPath();b.moveTo(-w*.28,-2);b.lineTo(w*.26,-2);b.stroke();b.fillStyle="rgba(120,170,120,.5)";for(let j=0;j<7;j++){b.beginPath();b.ellipse(-w*.25+j*w*.08,-16+Math.sin(j)*2,3,1.6,0,0,7);b.fill()}b.restore()});
+ // hydrotermální průduchy vlevo: 2 450–2 650 m
+ const VW=Math.min(230,W*.42),VH=200*mp;
+ const vents=mk(VW,VH,(b,w,h)=>{b.fillStyle="rgba(22,24,30,.96)";b.beginPath();b.moveTo(0,h*.35);b.quadraticCurveTo(w*.5,h*.38,w*.9,h*.7);b.lineTo(w,h);b.lineTo(0,h);b.closePath();b.fill();
+  for(const[cxp,ch,cw]of[[.22,.34,10],[.42,.24,8],[.6,.17,7]]){const bx=w*cxp,by=h*(.38+cxp*.42);b.fillStyle="rgba(34,30,32,.98)";b.beginPath();b.moveTo(bx-cw,by);b.lineTo(bx-cw*.45,by-h*ch);b.lineTo(bx+cw*.45,by-h*ch);b.lineTo(bx+cw,by);b.fill();
+   b.fillStyle="rgba(200,120,60,.4)";b.fillRect(bx-cw*.45,by-h*ch,cw*.9,2);
+   for(let j=0;j<6;j++){const tx=bx-cw-8+j*6+(j>2?cw*2:0),tl=8+((j*7)%9);b.strokeStyle="rgba(235,235,225,.85)";b.lineWidth=2;b.beginPath();b.moveTo(tx,by);b.lineTo(tx+Math.sin(j)*2,by-tl);b.stroke();b.fillStyle="#e0303a";b.beginPath();b.ellipse(tx+Math.sin(j)*2,by-tl-2,2.2,3.2,0,0,7);b.fill()}}});
+ // vrak zaoceánské lodi vpravo: 3 740–3 860 m (příď zabořená do sedimentu)
+ const LW=Math.min(380,W*.6),LH=150*mp;
+ const liner=mk(LW,LH,(b,w,h)=>{const top=h*.62;b.fillStyle="rgba(30,30,34,.96)";b.beginPath();b.moveTo(0,top+10);b.quadraticCurveTo(w*.5,top-6,w,top);b.lineTo(w,h);b.lineTo(0,h);b.closePath();b.fill();
+  b.save();b.translate(w*.12,top+4);b.rotate(-.05);b.fillStyle="rgba(46,42,40,.97)";b.beginPath();b.moveTo(0,0);b.lineTo(w*.08,-h*.38);b.lineTo(w*.9,-h*.42);b.lineTo(w*.92,-h*.05);b.lineTo(w*.9,6);b.closePath();b.fill();
+  b.fillStyle="rgba(120,60,40,.55)";b.fillRect(w*.1,-h*.12,w*.8,h*.05);
+  b.fillStyle="rgba(10,10,12,.8)";for(let j=0;j<16;j++){b.beginPath();b.arc(w*.16+j*w*.045,-h*.24,1.8,0,7);b.fill()}
+  b.fillStyle="rgba(46,42,40,.97)";b.fillRect(w*.35,-h*.56,w*.2,h*.15);b.strokeStyle="rgba(150,90,50,.5)";b.lineWidth=1;b.beginPath();b.moveTo(w*.08,-h*.38);b.lineTo(w*.04,-h*.66);b.stroke();
+  b.fillStyle="rgba(170,90,50,.45)";for(let j=0;j<22;j++){const xx=w*(.1+((j*37)%80)/100),yy=-h*(.05+((j*13)%30)/100);b.beginPath();b.moveTo(xx,yy);b.lineTo(xx+1.5,yy+6+(j%4)*2);b.lineTo(xx+3,yy);b.fill()}b.restore()});
+ SCN={reef,shelf,vents,liner,RW,SW,VW,LW};return SCN}
+// zdi příkopu: deterministický profil (součet sinů), šířka mezery se s hloubkou zužuje
+const TOP_PLAIN=5980,trenchGap=d=>W*Math.max(.34,.62-(d-6000)/5000*.28);
+const wallNoise=(d,s)=>Math.sin(d/90+s*3)*14+Math.sin(d/230+s)*22+Math.sin(d/37+s*7)*5;
+let WG2=null,WG2K="";
+const ZB=[[200,"Soumraková zóna"],[1000,"Půlnoční zóna"],[4000,"Propastná zóna"],[6000,"Hadalská zóna"],[11000,"Hlouběji než Mariánský příkop"]];
+let toldWreck=false;
+function scenery(t,yOf,sY){const mp=H/900,vis=(a,b)=>yOf(b)>-40&&yOf(a)<H+40,S2=sceneSprites();
+ const under=y=>y>sY+6; // nic se nekreslí nad hladinou
+ // korálový útes s chaluhami
+ const diving=S.m==="dive"||S.m==="roll"; // u lodi (úvod, konec) se útes nekreslí – za kartou by rušil čitelnost textu
+ if(diving&&vis(20,270)){const y0=yOf(20);if(under(y0+S2.reef.height))cx.drawImage(S2.reef,0,y0);
+  cx.strokeStyle="rgba(90,170,90,.55)";cx.lineWidth=3;cx.lineCap="round";cx.beginPath();for(let i=0;i<5;i++){const by=yOf(120+i*28),bx=S2.RW*(.55+.12*Math.sin(i*2.1)),hgt=60+i*9;if(by<sY+hgt)continue;cx.moveTo(bx,by);
+   const sw=Math.sin(t/1300+i*1.3)*10;cx.bezierCurveTo(bx+sw*.4,by-hgt*.35,bx-sw,by-hgt*.65,bx+sw,by-hgt)}cx.stroke()}
+ // šelf a vrak malé lodi
+ if(diving&&vis(240,420)){const y0=yOf(240);cx.drawImage(S2.shelf,W-S2.SW,y0)}
+ // hydrotermální průduchy a černý kouř
+ if(vis(2450,2650)){const y0=yOf(2450),vh=S2.vents.height;cx.drawImage(S2.vents,0,y0);cx.fillStyle="rgba(20,20,24,.35)";cx.beginPath();
+  for(const[cxp,ch]of[[.22,.34],[.42,.24],[.6,.17]]){const bx=S2.VW*cxp,by=y0+vh*(.38+cxp*.42)-vh*ch;for(let j=0;j<6;j++){const k=((t/2600+j/6+cxp)%1),r=4+k*16,yy=by-k*vh*.55,xx=bx+Math.sin(t/900+j*2)*k*12+k*8;cx.moveTo(xx+r,yy);cx.arc(xx,yy,r,0,7)}}cx.fill()}
+ // vrak zaoceánské lodi
+ if(vis(3740,3860)){const y0=yOf(3740);cx.drawImage(S2.liner,W-S2.LW,y0);
+  if(!toldWreck&&S.m==="dive"&&depth>3700&&depth<3900&&target>depth){toldWreck=true;toast("V téhle hloubce (3 800 m) leží vrak Titanicu")}}
+ if(depth<3000)toldWreck=false;
+ // propastná pláň a hadalský příkop
+ const yp=yOf(TOP_PLAIN);if(yp<H+40){if(WG2K!==W+"x"+H){WG2K=W+"x"+H;WG2=cx.createLinearGradient(0,0,W*.5,0);WG2.addColorStop(0,"#0c141c");WG2.addColorStop(1,"#2a3d4b")}
+  const step=14,yS=Math.max(yp,-20),dAt=y=>depth+(y-yOf(depth))/mp;
+  for(const side of[0,1]){cx.save();if(side){cx.translate(W,0);cx.scale(-1,1)}cx.fillStyle=WG2;cx.beginPath();cx.moveTo(-2,H+2);
+   // rovná pláň s nerovnostmi až k okraji příkopu (jen když je vidět), pak dolů po stěně
+   const ed=d=>W*.5-trenchGap(Math.max(d,6000))/2+wallNoise(d,side),xe=ed(6000);if(yp>-50){cx.lineTo(-2,yp);for(let x=0;x<xe;x+=24)cx.lineTo(x,yp+Math.sin(x/31+side*5)*2.5)}else cx.lineTo(-2,-20);
+   for(let y=Math.max(yS,yp+6);y<=H+step;y+=step)cx.lineTo(ed(dAt(y)),y);cx.lineTo(-2,H+2);cx.closePath();cx.fill();
+   cx.strokeStyle="rgba(160,195,210,.22)";cx.lineWidth=1.5;cx.beginPath();for(let y=Math.max(yS,yp+6),f=1;y<=H+step;y+=step){const x=ed(dAt(y));f?cx.moveTo(x,y):cx.lineTo(x,y);f=0}cx.stroke();
+   // lilijice a skleněné houby na římsách stěny (pevné hloubky, střídavě vlevo a vpravo)
+   for(let d=Math.ceil(Math.max(6100,dAt(-40))/320)*320;d<dAt(H+40);d+=320){if((d/320)%2!==side)continue;const y=yOf(d),x=ed(d)-6;
+    if((d/640)%2<1){cx.strokeStyle="rgba(220,200,160,.6)";cx.lineWidth=1.2;cx.beginPath();cx.moveTo(x,y);cx.lineTo(x+10,y-20);const sw=Math.sin(t/900+d)*.3;for(let j=0;j<7;j++){const a=-1.9+j*.5+sw;cx.moveTo(x+10,y-20);cx.lineTo(x+10+Math.cos(a)*11,y-20+Math.sin(a)*11)}cx.stroke()}
+    else{cx.fillStyle="rgba(210,225,230,.45)";cx.beginPath();cx.moveTo(x-1,y);cx.quadraticCurveTo(x+8,y-12,x+5,y-24);cx.lineTo(x+11,y-24);cx.quadraticCurveTo(x+12,y-10,x+5,y);cx.fill()}}
+   cx.restore()}
+  // život na pláni: jen u horní hrany příkopu
+  if(yp>-30&&yp<H+30){CR2.cuke(W*.14,yp-4,t,1,false,1);CR2.cuke(W*.9,yp-3,t,2,false,-1);CR2.tripod(W*.08,yp-26,t,0,false,1);CR2.tripod(W*.95,yp-26,t,0,false,-1)}}}
+/* po tmě (kreslí se přes ztmavení hlubiny): popisky zón, čelovka, světélkující žilky ve stěnách za Mariánským příkopem */
+let LAMPS=null;
+function afterDark(t,deep,swim,hx,hy,yOf,sY){
+ for(const[b,n]of ZB){const y=yOf(b);if(y<0||y>H||y<sY+30)continue;cx.fillStyle="rgba(255,255,255,.07)";cx.fillRect(0,y,W,1);cx.font="700 10.5px -apple-system,Inter,sans-serif";cx.textAlign="center";cx.fillStyle="rgba(225,245,255,.42)";cx.fillText(n.toUpperCase()+" · "+b.toLocaleString("cs-CZ")+" m",W/2,y-9);cx.textAlign="start"}
+ if(deep>0&&swim){if(!LAMPS){LAMPS=document.createElement("canvas");LAMPS.width=LAMPS.height=64;const b=LAMPS.getContext("2d"),g=b.createRadialGradient(32,32,0,32,32,32);g.addColorStop(0,"rgba(255,252,230,1)");g.addColorStop(.18,"rgba(255,246,200,.8)");g.addColorStop(.5,"rgba(255,240,190,.18)");g.addColorStop(1,"rgba(255,240,190,0)");b.fillStyle=g;b.fillRect(0,0,64,64)}
+  cx.save();cx.globalCompositeOperation="lighter";const s=22+Math.sin(t/170)*1.2;cx.globalAlpha=Math.min(1,deep*1.6);cx.drawImage(LAMPS,hx-s,hy-s,s*2,s*2);cx.restore()}
+ if(depth>10600){const mp=H/900;cx.save();cx.globalCompositeOperation="lighter";cx.fillStyle="#7ff0ff";for(const side of[0,1]){for(let i=0;i<14;i++){const d=Math.floor(depth/60)*60+(i-6)*60;if(d<11000)continue;const y=yOf(d),gp=trenchGap(d),x=side?W*.5+gp/2-wallNoise(d,side)+8:W*.5-gp/2+wallNoise(d,side)-8;
+  cx.globalAlpha=Math.min(1,(depth-10600)/600)*(.35+.35*Math.sin(t/600+i+side*3));cx.beginPath();cx.arc(x,y,1.8+(i%3),0,7);cx.fill()}}cx.restore();cx.globalAlpha=1}}
+// detaily potápěče navíc (odlesk na láhvi, manometr na hadici) – kreslí se přes původní postavu ve stejné soustavě souřadnic
+{const base=diver;diver=function(x,y,t,tilt,P){base(x,y,t,tilt,P);cx.save();cx.translate(x,y);cx.rotate(tilt);cx.scale(1.18,1.18);
+ cx.strokeStyle="rgba(255,255,255,.5)";cx.lineWidth=1.1;cx.beginPath();cx.moveTo(-16,-21.2);cx.lineTo(12,-21.2);cx.stroke();
+ const sw=Math.sin(t/700)*1.2*(P?1-P.leg:1);cx.strokeStyle="#1b1f24";cx.lineWidth=1.3;cx.beginPath();cx.moveTo(19,-15);cx.bezierCurveTo(12,-3,3,3,-2,9+sw);cx.stroke();
+ cx.fillStyle="#2b3036";cx.beginPath();cx.arc(-2.6,10.6+sw,3.3,0,7);cx.fill();cx.fillStyle="#e6edf1";cx.beginPath();cx.arc(-2.6,10.6+sw,2.1,0,7);cx.fill();
+ cx.strokeStyle="#d0303a";cx.lineWidth=.8;cx.beginPath();cx.moveTo(-2.6,10.6+sw);cx.lineTo(-1.5,9.3+sw);cx.stroke();cx.restore()}}
 function limb(x1,y1,x2,y2,bend,w,c){const mx=(x1+x2)/2,my=(y1+y2)/2,dxl=x2-x1,dyl=y2-y1,l=Math.hypot(dxl,dyl)||1;const kx=mx-dyl/l*bend,ky=my+dxl/l*bend;cx.strokeStyle=c;cx.lineWidth=w;cx.lineCap="round";cx.lineJoin="round";cx.beginPath();cx.moveTo(x1,y1);cx.lineTo(kx,ky);cx.lineTo(x2,y2);cx.stroke();return[kx,ky]}
 const rot2=(x,y,a)=>{const c=Math.cos(a),s=Math.sin(a);return[x*c-y*s,x*s+y*c]};
 /* Potápěč s klouby. Bez P plave (póza ze hry). P={leg:0–1 sed, tuck:0–1 schoulení, neck:otočení hlavy, hand:0–1 ruka na masce, kk:síla kopu}
@@ -376,6 +512,11 @@ function boat(t){const L=S.L,H1=L*.16,G=boatG(L);cx.save();cx.translate(S.bx,S.b
  cx.fillStyle="rgba(20,50,80,.75)";for(const x of[.1,.18,.26]){cx.beginPath();cx.arc(L*x,-H1*.78,L*.014,0,7);cx.fill()}
  cx.strokeStyle="rgba(255,255,255,.55)";cx.lineWidth=1;cx.beginPath();cx.moveTo(-L*.49,-H1+1.5);cx.lineTo(L*.36,-H1+1.5);cx.stroke();
  cx.strokeStyle="rgba(190,205,215,.9)";cx.lineWidth=1.6;cx.beginPath();cx.moveTo(-L*.36,-H1);cx.lineTo(-L*.36,-H1-L*.07);cx.lineTo(L*.34,-H1-L*.07);cx.lineTo(L*.34,-H1);cx.moveTo(-L*.36,-H1-L*.07);cx.lineTo(-L*.3,-H1-L*.07);cx.stroke();
+ // sloupky zábradlí, záchranný kruh, anténa a jméno lodi
+ cx.lineWidth=1.2;cx.beginPath();for(let x=-.24;x<.33;x+=.12){cx.moveTo(L*x,-H1);cx.lineTo(L*x,-H1-L*.07)}cx.stroke();
+ cx.strokeStyle="#ff6a3d";cx.lineWidth=L*.012;cx.beginPath();cx.arc(-L*.3,-H1-L*.035,L*.026,0,7);cx.stroke();cx.strokeStyle="#fff";cx.beginPath();for(let a=0;a<4;a++){cx.moveTo(-L*.3+Math.cos(a*1.57)*L*.026,-H1-L*.035+Math.sin(a*1.57)*L*.026);cx.arc(-L*.3,-H1-L*.035,L*.026,a*1.57,a*1.57+.45)}cx.stroke();
+ cx.strokeStyle="#9fb0bd";cx.lineWidth=1.2;cx.beginPath();cx.moveTo(L*.05,-H1-L*.185);cx.lineTo(L*.02,-H1-L*.42);cx.stroke();cx.fillStyle="#f4f8fb";cx.beginPath();cx.ellipse(L*.17,-H1-L*.198,L*.025,L*.014,0,Math.PI,0);cx.fill();
+ cx.fillStyle="rgba(30,55,80,.85)";cx.font=`800 ${Math.max(7,L*.042)}px -apple-system,Inter,sans-serif`;cx.textBaseline="middle";cx.fillText("KRILLION",-L*.33,-H1*.72);
  // žebřík na zádi (po něm potápěč vyleze zpátky)
  cx.strokeStyle="#b9c7d1";cx.lineWidth=1.8;cx.beginPath();cx.moveTo(-L*.47,-H1-L*.025);cx.quadraticCurveTo(-L*.53,-H1-L*.03,-L*.53,-H1+L*.01);cx.lineTo(-L*.53,L*.07);cx.stroke();
  cx.lineWidth=1.4;cx.beginPath();for(let y=-H1+L*.03;y<L*.07;y+=L*.03){cx.moveTo(-L*.53,y);cx.lineTo(-L*.555,y)}cx.stroke();
@@ -470,7 +611,8 @@ function draw(t){const dt=Math.min(t-lastT,50)||16;lastT=t;frameAvg=frameAvg*.95
  // potápěč v prostoru mezi HUD a kartou
  const freeTop=vTop+66,freeBot=vTop+Math.max(card.offsetTop,140);const playing=stage.classList.contains("play");const want=playing?Math.min(vTop+card.offsetTop+card.offsetHeight+95,H-70):Math.max(freeTop+40,Math.min(freeTop+(freeBot-freeTop)*.42,vTop+230));dyS+=(want-dyS)*Math.min(1,dt/350);
  const dxp=W*.5+Math.sin(t/3100)*W*.04,dyp=dyS+Math.sin(t/900)*6+hurt*Math.sin(t/30)*4;
- const tilt=.16+Math.sin(t/1300)*.05+Math.max(-.4,Math.min(v*.03,.55))+kick*.22-(target<depth-5?1:0);
+ tiltV+=((dt>0?v/dt*1000:0)-tiltV)*Math.min(1,dt/220); // rychlost klesání v m/s, vyhlazená (stejně při 60 i 120 Hz)
+ const tilt=.16+Math.sin(t/1300)*.05+Math.max(-.4,Math.min(tiltV*.0005,.55))+kick*.22-(target<depth-5?1:0);
  const sY=sceneStep(t,dt,dxp,dyp,tilt),co=S.co,dco=co-S.coP;S.coP=co;
  if(dco){for(const b of bub)b.y+=dco;for(const s of snow)s.y=((s.y+dco/H)%1+1)%1}
  const yOf=d=>dyp+40+(d-depth)*(H/900)+co;
@@ -480,6 +622,7 @@ function draw(t){const dt=Math.min(t-lastT,50)||16;lastT=t;frameAvg=frameAvg*.95
  const ra=Math.max(0,1-depth/700)*.15,r0=Math.max(0,sY);if(ra>.002&&r0<H){for(let i=0;i<7;i++){const x=W*(i/6)+Math.sin(t/3400+i*1.7)*70,w=50+(i*37)%90;const lg=cx.createLinearGradient(0,r0,0,H*.95+r0);lg.addColorStop(0,`rgba(255,255,255,${ra*(1+Math.sin(t/1800+i)*.4)})`);lg.addColorStop(1,"rgba(255,255,255,0)");cx.fillStyle=lg;cx.beginPath();cx.moveTo(x-w/2,r0);cx.lineTo(x+w/2,r0);cx.lineTo(x+w*1.7-W*.12,H);cx.lineTo(x-w*1.3-W*.12,H);cx.fill()}}
  const ca=Q>=1?Math.max(0,1-depth/260)*.1:0;if(ca>.002){cx.strokeStyle=`rgba(255,255,255,${ca})`;cx.lineWidth=2;for(let j=0;j<5;j++){cx.beginPath();for(let x=0;x<=W;x+=14){const y=vTop+H*.04+j*28+Math.sin(x/53+t/900+j)*9+Math.sin(x/21-t/700)*4-depth*(H/900)+co;x?cx.lineTo(x,y):cx.moveTo(x,y)}cx.stroke()}}
  cx.restore();
+ scenery(t,yOf,sY); // útes, vraky, průduchy, dno a příkop (za živočichy)
  cx.font="600 11px -apple-system,Inter,sans-serif";cx.textBaseline="middle";
  for(let m=Math.max(500,Math.floor((depth-500)/500)*500);m<depth+900;m+=500){const y=yOf(m);if(y<0||y>H)continue;cx.strokeStyle="rgba(255,255,255,.12)";cx.setLineDash([3,6]);cx.beginPath();cx.moveTo(0,y);cx.lineTo(W*.22,y);cx.stroke();cx.setLineDash([]);cx.fillStyle="rgba(255,255,255,.35)";cx.fillText(m.toLocaleString("cs-CZ")+" m",10,y-9)}
  const deep=Math.min(1,Math.max(0,(depth-600)/1800));
@@ -505,7 +648,8 @@ function draw(t){const dt=Math.min(t-lastT,50)||16;lastT=t;frameAvg=frameAvg*.95
  if(sY>-90)surfaceLayer(t,sY);
  if(dv){cx.save();cx.translate(dv.x,dv.y);cx.scale(dv.sc,dv.sc);diver(0,0,t,dv.rot,dv.P);cx.restore()}else diver(dxp,dyp,t,tilt);
  if(sY>-120)splashFx(t,dt,sY);
- if(deep>0&&swim){cx.save();cx.globalCompositeOperation="lighter";cx.fillStyle="rgba(255,250,220,.95)";cx.shadowBlur=16;cx.shadowColor="#fff6c8";cx.beginPath();cx.arc(hx,hy,2.6,0,7);cx.fill();cx.restore()}
+ afterDark(t,deep,swim,hx,hy,yOf,sY); // popisky zón, záře čelovky, světélkování za Mariánským příkopem
+ if(deep>0&&swim){cx.save();cx.globalCompositeOperation="lighter";cx.fillStyle="rgba(255,250,220,.95)";cx.beginPath();cx.arc(hx,hy,2.6,0,7);cx.fill();cx.restore()}
  cx.save();cx.globalCompositeOperation="lighter";for(let i=sparks.length-1;i>=0;i--){const s=sparks[i];s.x+=s.vx*dt/16;s.y+=s.vy*dt/16;s.vy+=.02;s.l-=dt/950;if(s.l<=0){sparks.splice(i,1);continue}cx.globalAlpha=s.l;cx.fillStyle=s.c;cx.shadowBlur=12;cx.shadowColor=s.c;cx.beginPath();cx.arc(s.x,s.y,s.r*s.l+.4,0,7);cx.fill()}cx.restore();
  cx.globalAlpha=.22*Math.min(1,Math.max(.25,(vTop-sY)/H))+deep*.3;cx.drawImage(VIG,0,0,W,H);cx.globalAlpha=1;
  const dmT=fmt(depth);if($("dm").textContent!==dmT)$("dm").textContent=dmT;$("mark").style.top=Math.min(depth/11000,1)*100+"%";
