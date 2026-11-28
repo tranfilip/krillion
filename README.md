@@ -14,6 +14,7 @@ Každý režim má vlastní rekord a otázky se neopakují ani mezi hrami.
 index.html          stránka hry
 styles.css          vzhled (tekuté sklo, HUD, karty)
 src/game.js         logika hry, vykreslování oceánu, potápěč, výběr otázek
+src/audio.js        zvuky generované v prohlížeči (Web Audio), ve výchozím stavu vypnuté
 src/shim.js         napojení na Clauda přes /api/ai (mimo claude.ai)
 data/questions.js   témata a odpovědi režimu Krillion (209 témat s úplným výčtem odpovědí)
 data/higher-lower.js položky režimu Vyšší, nebo nižší? (803 položek, 25 veličin, 179 překvapivých srovnání)
