@@ -8,6 +8,8 @@
 
 Každý režim má vlastní rekord a otázky se neopakují ani mezi hrami.
 
+Při prvním spuštění každého režimu se ukáže krátký návod. Na konci hry uvidíš přehled (úspěšnost, série, průměrná odchylka…), jestli padl rekord a výsledek můžeš poslat kamarádům jako text s emoji. V nastavení (ikona na úvodní kartě) jde vypnout animace a vibrace.
+
 ## Struktura
 
 ```
@@ -16,9 +18,9 @@ styles.css          vzhled (tekuté sklo, HUD, karty)
 src/game.js         logika hry, vykreslování oceánu, potápěč, výběr otázek
 src/audio.js        zvuky generované v prohlížeči (Web Audio), ve výchozím stavu vypnuté
 src/shim.js         napojení na Clauda přes /api/ai (mimo claude.ai)
-data/questions.js   témata a odpovědi režimu Krillion (209 témat s úplným výčtem odpovědí)
-data/higher-lower.js položky režimu Vyšší, nebo nižší? (803 položek, 25 veličin, 179 překvapivých srovnání)
-data/estimates.js   otázky režimu Odhad (373 otázek)
+data/questions.js   témata a odpovědi režimu Krillion (264 témat s úplným výčtem odpovědí)
+data/higher-lower.js položky režimu Vyšší, nebo nižší? (1 044 položek, 28 veličin, 223 překvapivých srovnání)
+data/estimates.js   otázky režimu Odhad (841 otázek)
 api/ai.js           serverová funkce pro Vercel – volá Anthropic API s tvým klíčem
 tests/              testy rozpoznávání, výběru témat, režimů a kontrola dat (npm test)
 ```
@@ -46,7 +48,7 @@ G: [ { v: "obyv", c: "Česko", s: "ČSÚ, 2024", a: 1, min: 1.1,   // skupina po
        i: [["Brno", 402000], ["Ostrava", 283000], ...] }, ... ]
 ```
 
-- hra sama skládá páry ze všech položek **stejné veličiny** (i z různých skupin), takže z 803 položek vzniknou desítky tisíc otázek,
+- hra sama skládá páry ze všech položek **stejné veličiny** (i z různých skupin), takže z 1 044 položek vzniknou desítky tisíc otázek,
 - `c` = kategorie, `s` = zdroj nebo poznámka (položka může mít vlastní jako třetí prvek), `a: 1` = přibližné hodnoty (ukáže se „~“),
 - `min` = nejmenší poměr hodnot, při kterém se dvojice smí zeptat – vždy aspoň 1,05 (rozdíl 5 %), u odhadů víc, aby nevznikaly sporné otázky,
 - `y: 1` = hodnota je rok vzniku a porovnává se stáří („Co je starší – iPhone, nebo YouTube?“),
