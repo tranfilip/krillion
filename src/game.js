@@ -7,6 +7,10 @@ const zoneOf=m=>ZONES.filter(z=>m>=z[0]).pop()[1];
 const $=id=>document.getElementById(id),card=$("card");
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const fmt=n=>Math.round(n).toLocaleString("cs-CZ")+" m";
+/* ---------- nastavení: animace, vibrace, zvuk (localStorage „krillion-nastaveni“, odděleně od rekordů) ---------- */
+const SKEY="krillion-nastaveni";
+const SET=(()=>{const s={anim:true,vib:true,snd:false,seen:{}};try{const r=JSON.parse(localStorage.getItem(SKEY)||"null");if(r&&typeof r==="object"){for(const k of["anim","vib","snd"])if(typeof r[k]==="boolean")s[k]=r[k];if(r.seen&&typeof r.seen==="object"&&!Array.isArray(r.seen))s.seen=r.seen}}catch(e){}return s})();
+const saveSet=()=>{try{localStorage.setItem(SKEY,JSON.stringify(SET))}catch(e){}};
 const norm=s=>String(s).toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^a-z0-9 ]/g," ").replace(/\s+/g," ").trim();
 const BASE=P.map(([lvl,q,a])=>({lvl,q,list:a.split(",").map(x=>{const v=x.split("|");return{show:v[0],vars:v,keys:v.map(norm)}})}));
 /* ---------- odvozené otázky: na písmeno, podle délky ---------- */
@@ -79,10 +83,11 @@ const tierFromPct=p=>p>=12?0:p>=4?1:p>=1.2?2:p>=0.3?3:4;
 
 /* ---------- paměť a výběr témat (testuje tests/select.test.js) ---------- */
 const KEY="krillion5";
-function loadState(ls){const s={best:0,runs:0,used:[],fam:{},cnt:{},seq:0,aiQ:{1:[],2:[],3:[],4:[]},dom:[]};
+function loadState(ls){const s={best:0,runs:0,used:[],fam:{},cnt:{},seq:0,aiQ:{1:[],2:[],3:[],4:[]},dom:[],scores:[]};
  try{const r=JSON.parse(ls.getItem(KEY)||"{}");if(r&&typeof r==="object")Object.assign(s,r)}catch(e){}
  const obj=x=>x&&typeof x==="object"&&!Array.isArray(x);if(!obj(s.fam))s.fam={};if(!obj(s.cnt))s.cnt={};if(!Array.isArray(s.used))s.used=[];if(!Array.isArray(s.dom))s.dom=[];
  if(!obj(s.aiQ))s.aiQ={};for(const k of[1,2,3,4])if(!Array.isArray(s.aiQ[k]))s.aiQ[k]=[];s.seq=+s.seq||0;
+ s.scores=Array.isArray(s.scores)?s.scores.filter(x=>Number.isFinite(x)).slice(-20):[]; // výsledky posledních her (průměr na konci hry)
  for(const f in s.fam)if(!(s.cnt[f]>0)&&s.fam[f]>0)s.cnt[f]=1; // starší uložení bez počítadla: co už padlo, padlo jednou
  return s}
 function saveState(ls,s){try{ls.setItem(KEY,JSON.stringify(s));return true}catch(e){return false}}
@@ -157,7 +162,9 @@ function loadModes(ls){const s={hl:{best:0,runs:0,pairs:[],it:{}},est:{best:0,ru
  let r=null;try{r=JSON.parse(ls.getItem(MKEY)||"null")}catch(e){}
  if(obj(r))for(const k of["hl","est"])if(obj(r[k]))Object.assign(s[k],r[k]);
  const h=s.hl,e=s.est;h.best=+h.best||0;h.runs=+h.runs||0;h.pairs=Array.isArray(h.pairs)?h.pairs.filter(x=>typeof x==="string"):[];if(!obj(h.it))h.it={};if(!obj(h.sx))h.sx={};
- e.best=+e.best||0;e.runs=+e.runs||0;e.seq=+e.seq||0;if(!obj(e.cnt))e.cnt={};if(!obj(e.last))e.last={};return s}
+ e.best=+e.best||0;e.runs=+e.runs||0;e.seq=+e.seq||0;if(!obj(e.cnt))e.cnt={};if(!obj(e.last))e.last={};
+ for(const o of[h,e])o.scores=Array.isArray(o.scores)?o.scores.filter(x=>Number.isFinite(x)).slice(-20):[]; // výsledky posledních her
+ return s}
 function saveModes(ls,s){try{ls.setItem(MKEY,JSON.stringify(s));return true}catch(e){return false}}
 /* „Vyšší, nebo nižší?“: cílová obtížnost roste s počtem otázek (1–4 Lehká, 5–9 Střední, 10–15 Těžká, pak Expert).
    Pár: stejná veličina, poměr ≥ 1,05 (a ≥ min skupiny), co nejblíž cílové obtížnosti, žádná položka dvakrát za ponor,
@@ -205,7 +212,11 @@ function mergeState(r){if(!r||typeof r!=="object")return;st.best=Math.max(st.bes
 async function pushRemote(){if(!dbRef||remoteBusy)return;remoteBusy=true;remoteDirty=false;
  try{await dbRef.set({best:st.best,runs:st.runs,seq:st.seq,fam:st.fam,used:st.used.slice(-2500),aiQ:st.aiQ,dom:st.dom.slice(-60)})}catch(e){}
  remoteBusy=false;if(remoteDirty)pushRemote()}
-const save=()=>{saveState(localStorage,st);remoteDirty=true;clearTimeout(remoteT);remoteT=setTimeout(pushRemote,1500)};
+/* zápis do localStorage (stovky kB JSONu) neběží uprostřed animace nové otázky, ale chvíli po ní;
+   při odchodu ze stránky nebo přepnutí aplikace se uloží hned */
+const later=(fn,ms)=>{let t=0;const run=()=>{if(t){clearTimeout(t);t=0;fn()}},f=()=>{if(!t)t=setTimeout(run,ms)};f.flush=run;return f};
+const saveLS=later(()=>saveState(localStorage,st),700);
+const save=()=>{saveLS();remoteDirty=true;clearTimeout(remoteT);remoteT=setTimeout(pushRemote,1500)};
 (async()=>{try{if(!window.claude||!window.claude.use)return;const[db,user]=await Promise.all([window.claude.use("db"),window.claude.use("user")]);if(!db||!user)return;const id=await user.id();if(!id)return;
  const ref=db.doc("data/users/"+id+"/krillion");const snap=await ref.get();dbRef=ref;if(snap.exists){mergeState(snap.data());saveState(localStorage,st)}}catch(e){}})();
 // Safari po 7 dnech bez návštěvy maže localStorage; požádej o trvalé úložiště, kde to jde
@@ -245,24 +256,44 @@ Vrať pouze JSON: {"valid":true|false,"name":"správný název","pct":číslo,"t
 
 /* ---------- klávesnice a sklo ---------- */
 const stage=$("stage"),hud=$("hud"),vv=window.visualViewport;let vTop=0,vH=innerHeight;
-function fit(){vH=vv?vv.height:innerHeight;vTop=vv?vv.offsetTop:0;stage.style.top=vTop+"px";stage.style.height=vH+"px";hud.style.transform=`translateY(${vTop}px)`;document.body.classList.toggle("kb",!!vv&&innerHeight-vH>140)}
+/* poloha a výška karty pro kreslení (loď, potápěč): čte se z DOM jen po změně (ResizeObserver / MutationObserver), ne v každém snímku */
+const CG={top:150,h:0,play:false,dirty:true};
+function geo(){if(CG.dirty){CG.dirty=!window.ResizeObserver;CG.top=card.offsetTop;CG.h=card.offsetHeight;CG.play=stage.classList.contains("play")}return CG}
+if(window.ResizeObserver){const dirty=()=>{CG.dirty=true};const ro=new ResizeObserver(dirty);ro.observe(card);ro.observe(stage);const mo=new MutationObserver(dirty);mo.observe(stage,{attributes:true,attributeFilter:["class","style"]});mo.observe(document.body,{attributes:true,attributeFilter:["class"]})}
+function fit(){CG.dirty=true;vH=vv?vv.height:innerHeight;vTop=vv?vv.offsetTop:0;stage.style.top=vTop+"px";stage.style.height=vH+"px";hud.style.transform=`translateY(${vTop}px)`;document.body.classList.toggle("kb",!!vv&&innerHeight-vH>140)}
 if(vv){vv.addEventListener("resize",fit);vv.addEventListener("scroll",fit)}addEventListener("resize",fit);fit();
 addEventListener("scroll",()=>{if(!document.body.classList.contains("kb"))scrollTo(0,0)});
-if(!matchMedia("(pointer: coarse)").matches)addEventListener("pointermove",e=>{for(const g of document.querySelectorAll(".glass")){const r=g.getBoundingClientRect();g.style.setProperty("--mx",((e.clientX-r.left)/r.width*100)+"%");g.style.setProperty("--my",((e.clientY-r.top)/r.height*100)+"%")}});
+// odlesk skla za myší: nejvýš jednou za snímek a nejdřív všechna měření, pak zápisy (střídání čtení a zápisu nutí prohlížeč přepočítávat layout)
+if(!matchMedia("(pointer: coarse)").matches){let pe=null,praf=0;addEventListener("pointermove",e=>{pe=e;if(!praf)praf=requestAnimationFrame(()=>{praf=0;const gs=[...document.querySelectorAll(".glass")],rs=gs.map(g=>g.getBoundingClientRect());
+ gs.forEach((g,i)=>{const r=rs[i];if(!r.width||!r.height)return;g.style.setProperty("--mx",((pe.clientX-r.left)/r.width*100).toFixed(1)+"%");g.style.setProperty("--my",((pe.clientY-r.top)/r.height*100).toFixed(1)+"%")})})},{passive:true})}
 
 /* ---------- oceán ---------- */
 const cv=$("sea"),cx=cv.getContext("2d");let W=0,H=0;
 const dk=document.createElement("canvas"),dx=dk.getContext("2d");
-const RM=matchMedia("(prefers-reduced-motion: reduce)").matches;
-const MOBILE=matchMedia("(pointer: coarse)").matches;let SBK=MOBILE?0:1,Q=MOBILE?1:2,frameAvg=16;
+// méně pohybu: systémové omezení pohybu (prefers-reduced-motion) nebo vypnuté animace v nastavení hry
+const OSRM=matchMedia("(prefers-reduced-motion: reduce)");let RM=false;
+function applyMotion(){RM=OSRM.matches||!SET.anim;document.documentElement.classList.toggle("no-anim",!SET.anim)}
+applyMotion();try{OSRM.addEventListener("change",applyMotion)}catch(e){}
+const MOBILE=matchMedia("(pointer: coarse)").matches;let SBK=MOBILE?0:1,Q=MOBILE?1:2,frameAvg=16;const Q0=Q;
+/* jemné vibrace (podle nastavení): Android přes Vibration API; iPhone (Safari 18+) umí jen krátké ťuknutí přes skrytý
+   přepínač – použije se jen tehdy, když není otevřená klávesnice (kliknutí nesmí vzít inputu fokus) */
+const IOS=/iP(hone|ad|od)/.test(navigator.userAgent)||navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1;
+const HAPT=!navigator.vibrate&&IOS?(()=>{const l=document.createElement("label"),i=document.createElement("input");i.type="checkbox";i.setAttribute("switch","");i.tabIndex=-1;l.setAttribute("aria-hidden","true");l.style.cssText="position:fixed;left:-100px;top:0;width:1px;height:1px;opacity:0;overflow:hidden;pointer-events:none";l.appendChild(i);document.body.appendChild(l);return l})():null;
+const CANBUZZ=MOBILE&&!!navigator.vibrate||!!HAPT;
+function buzz(p){if(!SET.vib||!CANBUZZ)return;try{if(navigator.vibrate){navigator.vibrate(p);return}const a=document.activeElement;if(!(a&&a.tagName==="INPUT"))HAPT.click()}catch(e){}}
+function coolQ(){draw.cool=1;setTimeout(()=>draw.cool=0,3000);rs()}
+// gradienty se vytvoří jednou a pak se jen posouvají přes translate (na iPhonu je vytváření gradientů v každém snímku drahé)
+let WG=null,WGK="";const GC=new Map();const gcache=(k,f)=>{let g=GC.get(k);if(!g){g=f();GC.set(k,g)}return g};
 {const d=Object.getOwnPropertyDescriptor(CanvasRenderingContext2D.prototype,"shadowBlur");Object.defineProperty(cx,"shadowBlur",{get(){return d.get.call(this)},set(v){d.set.call(this,v*SBK)}})}
 const BUB=document.createElement("canvas");BUB.width=BUB.height=48;{const b=BUB.getContext("2d"),gg=b.createRadialGradient(17,17,0,24,24,24);gg.addColorStop(0,"rgba(255,255,255,.85)");gg.addColorStop(.7,"rgba(255,255,255,.08)");gg.addColorStop(.92,"rgba(255,255,255,.55)");gg.addColorStop(1,"rgba(255,255,255,0)");b.fillStyle=gg;b.fillRect(0,0,48,48)}
 let VIG=null;function vignette(){VIG=document.createElement("canvas");VIG.width=Math.ceil(W/2);VIG.height=Math.ceil(H/2);const v=VIG.getContext("2d"),gg=v.createRadialGradient(W/4,H/5,Math.min(W,H)*.17,W/4,H/4,Math.max(W,H)*.4);gg.addColorStop(0,"rgba(0,6,18,0)");gg.addColorStop(1,"rgba(0,6,18,1)");v.fillStyle=gg;v.fillRect(0,0,W,H)}
-function rs(){const d=Math.min(devicePixelRatio||1,MOBILE?1.25:2)*(Q<1?.85:1);W=innerWidth;H=innerHeight;cv.width=W*d;cv.height=H*d;cx.setTransform(d,0,0,d,0,0);dk.width=Math.ceil(W/2);dk.height=Math.ceil(H/2);dx.setTransform(.5,0,0,.5,0,0);vignette()}
+function rs(){GC.clear();WGK="";const d=Math.min(devicePixelRatio||1,MOBILE?1.25:2)*(Q<1?.85:1);W=innerWidth;H=innerHeight;cv.width=W*d;cv.height=H*d;cx.setTransform(d,0,0,d,0,0);dk.width=Math.ceil(W/2);dk.height=Math.ceil(H/2);dx.setTransform(.5,0,0,.5,0,0);vignette()}
 addEventListener("resize",rs);rs();
 const CS=[[0,[96,214,238]],[120,[34,152,200]],[500,[14,88,145]],[1500,[8,44,86]],[4000,[4,17,40]],[7000,[1,4,13]],[12000,[0,2,6]]];
 function col(m){for(let i=1;i<CS.length;i++)if(m<=CS[i][0]){const[a,ca]=CS[i-1],[b,cb]=CS[i],t=(m-a)/(b-a);return ca.map((v,k)=>Math.round(v+(cb[k]-v)*t))}return CS.at(-1)[1]}
 const rgb=(c,a=1)=>`rgba(${c[0]},${c[1]},${c[2]},${a})`;
+// barva vody od horního po dolní okraj: nový gradient jen když se barvy opravdu změní (na místě se nemění vůbec)
+function waterG(a,b){const k=a[0]+","+a[1]+","+a[2]+"|"+b[0]+","+b[1]+","+b[2]+"|"+H;if(k!==WGK){WGK=k;WG=cx.createLinearGradient(0,0,0,H);WG.addColorStop(0,rgb(a));WG.addColorStop(1,rgb(b))}return WG}
 const snow=Array.from({length:150},(_,i)=>({x:Math.random(),y:Math.random(),r:i<110?Math.random()*1.1+.3:Math.random()*2+1.4,w:Math.random()*6,z:i<110?.5:1.3}));
 const glow=Array.from({length:55},()=>({x:Math.random(),y:Math.random(),p:Math.random()*6,c:Math.random()<.5?"#8ff7ff":"#a9ffcf"}));
 const bub=[],sparks=[];
@@ -272,25 +303,27 @@ const LIFE=[["school",60,.2,22],["barracuda",130,.75,-30],["turtle",200,.8,-12],
 LIFE.push(["reeffish",70,.16,0],["reeffish",185,.2,0],["barreleye",760,.68,-10],["sperm",1250,.32,14],["chimera",2300,.7,-12],["amphipod",8600,.5,0],["amphipod",10500,.42,0]);
 let depth=0,target=0,lastT=0,kick=0,hurt=0,ease=1000,nextBreath=0,dyS=170,tiltV=0;
 function px(xf,spd,t,d){if(!spd)return W*xf+Math.sin(t/2800+d)*W*.06;const span=W+520;return((W*xf+spd*t/1000)%span+span)%span-260}
-const FG={};function fgrad(c1,c2){const k=c1+c2;if(!FG[k]){const g=cx.createLinearGradient(0,-4,0,4);g.addColorStop(0,c1);g.addColorStop(1,c2);FG[k]=g}return FG[k]}
-function fish(x,y,s,a,dir,c1,c2){cx.save();cx.translate(x,y);cx.scale(dir*s,s);cx.fillStyle=fgrad(c1||`rgba(235,252,255,${a})`,c2||`rgba(130,185,215,${a*.75})`);cx.beginPath();cx.moveTo(11,0);cx.quadraticCurveTo(6,-4.5,-4,-3.6);cx.quadraticCurveTo(-8,-1.5,-9,0);cx.quadraticCurveTo(-8,1.5,-4,3.6);cx.quadraticCurveTo(6,4.5,11,0);cx.fill();cx.beginPath();cx.moveTo(-8,0);cx.lineTo(-15,-5);cx.lineTo(-13,0);cx.lineTo(-15,5);cx.fill();cx.fillStyle=`rgba(255,255,255,${a*.5})`;cx.fillRect(-4,-.6,12,.9);cx.fillStyle=`rgba(5,20,35,${a})`;cx.beginPath();cx.arc(7,-1,1,0,7);cx.fill();cx.restore()}
+// rybka (hejna, svítilky): hotový sprite pro každou barvu a směr, pak už jen drawImage – žádné cesty a gradienty v každém snímku
+const FS=new Map();function fishSpr(a,dir,c1,c2){const k=a+"|"+dir+"|"+c1+"|"+c2;let c=FS.get(k);if(c)return c;const K=3;c=document.createElement("canvas");c.width=32*K;c.height=12*K;const b=c.getContext("2d");b.setTransform(K*dir,0,0,K,16*K,6*K);
+ const g=b.createLinearGradient(0,-4,0,4);g.addColorStop(0,c1||`rgba(235,252,255,${a})`);g.addColorStop(1,c2||`rgba(130,185,215,${a*.75})`);b.fillStyle=g;b.beginPath();b.moveTo(11,0);b.quadraticCurveTo(6,-4.5,-4,-3.6);b.quadraticCurveTo(-8,-1.5,-9,0);b.quadraticCurveTo(-8,1.5,-4,3.6);b.quadraticCurveTo(6,4.5,11,0);b.fill();b.beginPath();b.moveTo(-8,0);b.lineTo(-15,-5);b.lineTo(-13,0);b.lineTo(-15,5);b.fill();b.fillStyle=`rgba(255,255,255,${a*.5})`;b.fillRect(-4,-.6,12,.9);b.fillStyle=`rgba(5,20,35,${a})`;b.beginPath();b.arc(7,-1,1,0,7);b.fill();FS.set(k,c);return c}
+function fish(x,y,s,a,dir,c1,c2){cx.drawImage(fishSpr(a,dir,c1,c2),x-16*s,y-6*s,32*s,12*s)}
 function creature(k,x,y,t,d,lum,dir){
  if(k==="school"){for(let i=0;i<22;i++){const a=i*2.4,r=18+(i*13)%46;fish(x+Math.cos(a+t/2400)*r*1.4,y+Math.sin(a+t/2400)*r*.55+Math.sin(t/500+i)*2,.85+(i%3)*.15,.6,dir)}}
- else if(k==="barracuda"){for(let i=0;i<4;i++){cx.save();cx.translate(x+i*34,y+i*16+Math.sin(t/700+i)*3);cx.scale(dir,1);const g=cx.createLinearGradient(0,-5,0,5);g.addColorStop(0,"rgba(120,150,170,.85)");g.addColorStop(1,"rgba(220,235,240,.75)");cx.fillStyle=g;cx.beginPath();cx.moveTo(40,1);cx.lineTo(30,-4);cx.quadraticCurveTo(0,-6,-30,-2);cx.lineTo(-30,2);cx.quadraticCurveTo(0,6,30,4);cx.fill();cx.beginPath();cx.moveTo(-28,0);cx.lineTo(-40,-8);cx.lineTo(-36,0);cx.lineTo(-40,8);cx.fill();cx.fillStyle="rgba(40,60,80,.5)";for(let j=0;j<6;j++)cx.fillRect(-18+j*7,-4,2,4);cx.fillStyle="#0a1520";cx.beginPath();cx.arc(30,-1,1.2,0,7);cx.fill();cx.restore()}}
- else if(k==="turtle"){cx.save();cx.translate(x,y);cx.scale(dir,1);cx.rotate(Math.sin(t/2000)*.06);const f=Math.sin(t/600)*.5;cx.fillStyle="rgba(60,110,95,.85)";cx.save();cx.translate(10,-14);cx.rotate(-.9+f);cx.beginPath();cx.ellipse(0,-10,6,16,0,0,7);cx.fill();cx.restore();cx.save();cx.translate(10,14);cx.rotate(.9-f);cx.beginPath();cx.ellipse(0,10,6,16,0,0,7);cx.fill();cx.restore();cx.beginPath();cx.ellipse(-24,-10,4,8,-.8,0,7);cx.ellipse(-24,10,4,8,.8,0,7);cx.fill();const tg=cx.createRadialGradient(-6,-8,2,0,0,30);tg.addColorStop(0,"rgba(150,190,120,.95)");tg.addColorStop(.6,"rgba(90,130,80,.95)");tg.addColorStop(1,"rgba(50,85,60,.95)");cx.fillStyle=tg;cx.beginPath();cx.ellipse(0,0,28,20,0,0,7);cx.fill();cx.strokeStyle="rgba(30,50,30,.45)";cx.lineWidth=1.2;cx.beginPath();cx.moveTo(-14,-10);cx.lineTo(-4,-14);cx.lineTo(8,-12);cx.lineTo(16,-4);cx.lineTo(16,4);cx.lineTo(8,12);cx.lineTo(-4,14);cx.lineTo(-14,10);cx.lineTo(-18,0);cx.closePath();cx.moveTo(-4,-14);cx.lineTo(0,0);cx.lineTo(8,-12);cx.moveTo(0,0);cx.lineTo(16,4);cx.moveTo(0,0);cx.lineTo(-4,14);cx.moveTo(0,0);cx.lineTo(-18,0);cx.stroke();cx.fillStyle="rgba(110,150,110,.95)";cx.beginPath();cx.ellipse(34,0,10,7,0,0,7);cx.fill();cx.fillStyle="#102010";cx.beginPath();cx.arc(39,-2.5,1.4,0,7);cx.fill();cx.restore()}
- else if(k==="manta"){cx.save();cx.translate(x,y);cx.scale(dir,1);const f=Math.sin(t/800)*14;const mg=cx.createLinearGradient(0,-70,0,70);mg.addColorStop(0,"rgba(16,40,64,.9)");mg.addColorStop(.5,"rgba(30,62,90,.85)");mg.addColorStop(1,"rgba(16,40,64,.9)");cx.fillStyle=mg;cx.beginPath();cx.moveTo(46,-6);cx.quadraticCurveTo(14,-24-f,-24,-78-f);cx.quadraticCurveTo(-18,-26,-42,0);cx.quadraticCurveTo(-18,26,-24,78+f);cx.quadraticCurveTo(14,24+f,46,6);cx.fill();cx.fillStyle="rgba(16,40,64,.9)";cx.beginPath();cx.ellipse(48,-9,8,3,.5,0,7);cx.ellipse(48,9,8,3,-.5,0,7);cx.fill();cx.strokeStyle="rgba(16,40,64,.8)";cx.lineWidth=1.6;cx.beginPath();cx.moveTo(-42,0);cx.quadraticCurveTo(-80,4,-115,Math.sin(t/500)*7);cx.stroke();cx.fillStyle="rgba(220,240,255,.12)";cx.beginPath();cx.ellipse(6,0,18,10,0,0,7);cx.fill();cx.restore()}
- else if(k==="shark"){cx.save();cx.translate(x,y);cx.scale(dir,1);const sw=Math.sin(t/380)*.14;const sg=cx.createLinearGradient(0,-24,0,24);sg.addColorStop(0,"rgba(50,78,100,.95)");sg.addColorStop(.55,"rgba(78,110,135,.92)");sg.addColorStop(.62,"rgba(200,215,225,.9)");sg.addColorStop(1,"rgba(225,235,240,.85)");cx.fillStyle=sg;cx.beginPath();cx.moveTo(84,4);cx.quadraticCurveTo(70,-16,30,-18);cx.quadraticCurveTo(-30,-14,-70,-3);cx.lineTo(-70,3);cx.quadraticCurveTo(-30,14,30,16);cx.quadraticCurveTo(70,16,84,4);cx.fill();cx.save();cx.translate(-68,0);cx.rotate(sw);cx.fillStyle="rgba(55,82,104,.95)";cx.beginPath();cx.moveTo(4,-2);cx.quadraticCurveTo(-14,-16,-28,-38);cx.quadraticCurveTo(-18,-8,-14,0);cx.quadraticCurveTo(-18,8,-26,24);cx.quadraticCurveTo(-10,10,4,2);cx.fill();cx.restore();cx.fillStyle="rgba(50,78,100,.95)";cx.beginPath();cx.moveTo(16,-16);cx.quadraticCurveTo(4,-34,-10,-50);cx.quadraticCurveTo(-8,-26,-16,-14);cx.fill();cx.beginPath();cx.moveTo(26,10);cx.quadraticCurveTo(10,26,-4,36);cx.quadraticCurveTo(0,20,4,12);cx.fill();cx.strokeStyle="rgba(20,35,50,.5)";cx.lineWidth=1;for(let i=0;i<4;i++){cx.beginPath();cx.moveTo(44-i*5,-8);cx.quadraticCurveTo(42-i*5,-2,44-i*5,4);cx.stroke()}cx.fillStyle="#050a10";cx.beginPath();cx.arc(64,-3,2.3,0,7);cx.fill();cx.fillStyle="rgba(255,255,255,.6)";cx.beginPath();cx.arc(64.7,-3.7,.7,0,7);cx.fill();cx.restore()}
- else if(k==="whale"){cx.save();cx.translate(x,y);cx.scale(dir,1);const tf=Math.sin(t/1100)*8;const wg=cx.createLinearGradient(0,-44,0,44);wg.addColorStop(0,"rgba(20,62,98,.8)");wg.addColorStop(.6,"rgba(12,44,76,.8)");wg.addColorStop(1,"rgba(70,110,140,.6)");cx.fillStyle=wg;cx.beginPath();cx.moveTo(180,6);cx.quadraticCurveTo(170,-36,80,-42);cx.quadraticCurveTo(-60,-40,-170,-6);cx.lineTo(-170,6);cx.quadraticCurveTo(-60,36,80,40);cx.quadraticCurveTo(170,40,180,6);cx.fill();cx.beginPath();cx.moveTo(-165,0);cx.quadraticCurveTo(-200,-10,-238,-44+tf);cx.quadraticCurveTo(-218,-6,-226,0);cx.quadraticCurveTo(-218,6,-240,42+tf);cx.quadraticCurveTo(-200,10,-165,4);cx.fill();cx.beginPath();cx.moveTo(60,30);cx.quadraticCurveTo(30,70,-10,80);cx.quadraticCurveTo(20,50,30,34);cx.fill();cx.strokeStyle="rgba(150,190,215,.18)";cx.lineWidth=1.2;for(let i=0;i<7;i++){cx.beginPath();cx.moveTo(150-i*12,20);cx.quadraticCurveTo(110-i*12,34,60-i*12,36);cx.stroke()}cx.fillStyle="#04101c";cx.beginPath();cx.arc(140,8,3,0,7);cx.fill();cx.restore()}
- else if(k==="jelly"){const p=Math.sin(t/520+d)*.13;cx.save();cx.shadowBlur=lum?30:8;cx.shadowColor=lum?"#9ff4ff":"rgba(255,255,255,.5)";const jg=cx.createRadialGradient(x,y-8,2,x,y,28);jg.addColorStop(0,lum?"rgba(230,255,255,.9)":"rgba(255,255,255,.6)");jg.addColorStop(.6,lum?"rgba(140,230,255,.45)":"rgba(255,255,255,.25)");jg.addColorStop(1,lum?"rgba(120,220,255,.2)":"rgba(255,255,255,.1)");cx.fillStyle=jg;cx.beginPath();cx.ellipse(x,y,26*(1+p),20*(1-p),0,Math.PI,0);cx.quadraticCurveTo(x+13,y+6,x,y+3);cx.quadraticCurveTo(x-13,y+6,x-26*(1+p),y);cx.fill();cx.fillStyle=lum?"rgba(255,180,240,.6)":"rgba(255,200,230,.4)";for(let i=0;i<4;i++){cx.beginPath();cx.arc(x+Math.cos(i*1.57)*7,y-8+Math.sin(i*1.57)*4,3.2,0,7);cx.fill()}cx.strokeStyle=lum?"rgba(170,240,255,.55)":"rgba(255,255,255,.35)";cx.lineWidth=1.1;for(let i=-4;i<=4;i++){cx.beginPath();cx.moveTo(x+i*5.5,y+3);for(let j=1;j<10;j++)cx.lineTo(x+i*5.5+Math.sin(t/380+j*.7+i)*(3+j*.4),y+3+j*9);cx.stroke()}cx.lineWidth=3;cx.strokeStyle=lum?"rgba(255,190,240,.35)":"rgba(255,220,240,.25)";for(let i=-1;i<=1;i++){cx.beginPath();cx.moveTo(x+i*6,y+3);for(let j=1;j<6;j++)cx.lineTo(x+i*6+Math.sin(t/500+j+i)*6,y+3+j*10);cx.stroke()}cx.restore()}
- else if(k==="lantern"){cx.save();for(let i=0;i<18;i++){const a=i*2.4,r=14+(i*11)%40,fx=x+Math.cos(a+t/2600)*r*1.5,fy=y+Math.sin(a+t/2600)*r*.6;fish(fx,fy,.8,.5,dir,"rgba(60,80,110,.8)","rgba(30,40,60,.8)");cx.fillStyle=`rgba(140,240,255,${.5+.5*Math.sin(t/300+i)})`;cx.shadowBlur=10;cx.shadowColor="#8ff7ff";for(let j=0;j<3;j++){cx.beginPath();cx.arc(fx+dir*(-3+j*4),fy+2.6,.9,0,7);cx.fill()}cx.shadowBlur=0}cx.restore()}
- else if(k==="hatchet"){cx.save();for(let i=0;i<6;i++){const fx=x+(i%3)*40,fy=y+Math.floor(i/3)*34+Math.sin(t/600+i)*4;cx.save();cx.translate(fx,fy);cx.scale(dir,1);const g=cx.createLinearGradient(0,-10,0,10);g.addColorStop(0,"rgba(190,210,230,.85)");g.addColorStop(1,"rgba(110,140,170,.75)");cx.fillStyle=g;cx.beginPath();cx.moveTo(10,-6);cx.lineTo(-6,-7);cx.lineTo(-10,0);cx.quadraticCurveTo(-2,14,8,6);cx.closePath();cx.fill();cx.beginPath();cx.moveTo(-9,0);cx.lineTo(-15,-4);cx.lineTo(-15,4);cx.fill();cx.fillStyle="#fff";cx.beginPath();cx.arc(6,-3,2.4,0,7);cx.fill();cx.fillStyle="#000";cx.beginPath();cx.arc(6.4,-3,1.3,0,7);cx.fill();cx.fillStyle="rgba(150,240,255,.85)";cx.shadowBlur=8;cx.shadowColor="#8ff7ff";for(let j=0;j<4;j++){cx.beginPath();cx.arc(4-j*3,6-j*1.4,.9,0,7);cx.fill()}cx.restore()}cx.restore()}
- else if(k==="squid"){cx.save();cx.translate(x,y);cx.rotate(-.5+Math.sin(t/1600)*.12);cx.shadowBlur=18;cx.shadowColor="#ff8a7a";const g2=cx.createLinearGradient(-14,0,14,0);g2.addColorStop(0,"rgba(220,90,80,.55)");g2.addColorStop(.5,"rgba(255,160,140,.75)");g2.addColorStop(1,"rgba(220,90,80,.55)");cx.fillStyle=g2;cx.beginPath();cx.moveTo(0,-56);cx.quadraticCurveTo(20,-12,13,36);cx.lineTo(-13,36);cx.quadraticCurveTo(-20,-12,0,-56);cx.fill();cx.beginPath();cx.moveTo(0,-56);cx.lineTo(16,-38);cx.lineTo(-16,-38);cx.fill();cx.fillStyle="rgba(255,255,255,.7)";cx.beginPath();cx.arc(-7,28,3,0,7);cx.arc(7,28,3,0,7);cx.fill();cx.strokeStyle="rgba(255,150,130,.6)";cx.lineWidth=2.2;cx.lineCap="round";for(let i=-3;i<=3;i++){cx.beginPath();cx.moveTo(i*3,36);cx.quadraticCurveTo(i*6+Math.sin(t/300+i)*7,64,i*5+Math.sin(t/400+i)*4,88);cx.stroke()}cx.lineWidth=1.4;for(const s of[-1,1]){cx.beginPath();cx.moveTo(s*4,36);cx.bezierCurveTo(s*14,80,s*4+Math.sin(t/350)*10,110,s*16,128);cx.stroke()}cx.restore()}
- else if(k==="vampire"){cx.save();cx.translate(x,y);const p=Math.sin(t/900);cx.shadowBlur=14;cx.shadowColor="#5ff";const vg=cx.createRadialGradient(0,-6,2,0,0,40);vg.addColorStop(0,"rgba(150,40,50,.85)");vg.addColorStop(1,"rgba(70,10,20,.8)");cx.fillStyle=vg;cx.beginPath();cx.ellipse(0,-14,14,18,0,0,7);cx.fill();cx.beginPath();cx.moveTo(-12,-2);for(let i=0;i<=8;i++){const a=Math.PI*(i/8),r=34+p*8+(i%2)*6;cx.lineTo(Math.cos(a)*r*-1,Math.sin(a)*r*.7+4)}cx.lineTo(12,-2);cx.fill();cx.beginPath();cx.ellipse(-12,-28,6,3,-.6,0,7);cx.ellipse(12,-28,6,3,.6,0,7);cx.fill();cx.fillStyle="rgba(120,255,255,.9)";cx.beginPath();cx.arc(-6,-14,2.4,0,7);cx.arc(6,-14,2.4,0,7);cx.fill();cx.restore()}
+ else if(k==="barracuda"){for(let i=0;i<4;i++){cx.save();cx.translate(x+i*34,y+i*16+Math.sin(t/700+i)*3);cx.scale(dir,1);cx.fillStyle=gcache("baracuda",()=>{const g=cx.createLinearGradient(0,-5,0,5);g.addColorStop(0,"rgba(120,150,170,.85)");g.addColorStop(1,"rgba(220,235,240,.75)");return g});cx.beginPath();cx.moveTo(40,1);cx.lineTo(30,-4);cx.quadraticCurveTo(0,-6,-30,-2);cx.lineTo(-30,2);cx.quadraticCurveTo(0,6,30,4);cx.fill();cx.beginPath();cx.moveTo(-28,0);cx.lineTo(-40,-8);cx.lineTo(-36,0);cx.lineTo(-40,8);cx.fill();cx.fillStyle="rgba(40,60,80,.5)";for(let j=0;j<6;j++)cx.fillRect(-18+j*7,-4,2,4);cx.fillStyle="#0a1520";cx.beginPath();cx.arc(30,-1,1.2,0,7);cx.fill();cx.restore()}}
+ else if(k==="turtle"){cx.save();cx.translate(x,y);cx.scale(dir,1);cx.rotate(Math.sin(t/2000)*.06);const f=Math.sin(t/600)*.5;cx.fillStyle="rgba(60,110,95,.85)";cx.save();cx.translate(10,-14);cx.rotate(-.9+f);cx.beginPath();cx.ellipse(0,-10,6,16,0,0,7);cx.fill();cx.restore();cx.save();cx.translate(10,14);cx.rotate(.9-f);cx.beginPath();cx.ellipse(0,10,6,16,0,0,7);cx.fill();cx.restore();cx.beginPath();cx.ellipse(-24,-10,4,8,-.8,0,7);cx.ellipse(-24,10,4,8,.8,0,7);cx.fill();cx.fillStyle=gcache("turtle",()=>{const tg=cx.createRadialGradient(-6,-8,2,0,0,30);tg.addColorStop(0,"rgba(150,190,120,.95)");tg.addColorStop(.6,"rgba(90,130,80,.95)");tg.addColorStop(1,"rgba(50,85,60,.95)");return tg});cx.beginPath();cx.ellipse(0,0,28,20,0,0,7);cx.fill();cx.strokeStyle="rgba(30,50,30,.45)";cx.lineWidth=1.2;cx.beginPath();cx.moveTo(-14,-10);cx.lineTo(-4,-14);cx.lineTo(8,-12);cx.lineTo(16,-4);cx.lineTo(16,4);cx.lineTo(8,12);cx.lineTo(-4,14);cx.lineTo(-14,10);cx.lineTo(-18,0);cx.closePath();cx.moveTo(-4,-14);cx.lineTo(0,0);cx.lineTo(8,-12);cx.moveTo(0,0);cx.lineTo(16,4);cx.moveTo(0,0);cx.lineTo(-4,14);cx.moveTo(0,0);cx.lineTo(-18,0);cx.stroke();cx.fillStyle="rgba(110,150,110,.95)";cx.beginPath();cx.ellipse(34,0,10,7,0,0,7);cx.fill();cx.fillStyle="#102010";cx.beginPath();cx.arc(39,-2.5,1.4,0,7);cx.fill();cx.restore()}
+ else if(k==="manta"){cx.save();cx.translate(x,y);cx.scale(dir,1);const f=Math.sin(t/800)*14;cx.fillStyle=gcache("manta",()=>{const mg=cx.createLinearGradient(0,-70,0,70);mg.addColorStop(0,"rgba(16,40,64,.9)");mg.addColorStop(.5,"rgba(30,62,90,.85)");mg.addColorStop(1,"rgba(16,40,64,.9)");return mg});cx.beginPath();cx.moveTo(46,-6);cx.quadraticCurveTo(14,-24-f,-24,-78-f);cx.quadraticCurveTo(-18,-26,-42,0);cx.quadraticCurveTo(-18,26,-24,78+f);cx.quadraticCurveTo(14,24+f,46,6);cx.fill();cx.fillStyle="rgba(16,40,64,.9)";cx.beginPath();cx.ellipse(48,-9,8,3,.5,0,7);cx.ellipse(48,9,8,3,-.5,0,7);cx.fill();cx.strokeStyle="rgba(16,40,64,.8)";cx.lineWidth=1.6;cx.beginPath();cx.moveTo(-42,0);cx.quadraticCurveTo(-80,4,-115,Math.sin(t/500)*7);cx.stroke();cx.fillStyle="rgba(220,240,255,.12)";cx.beginPath();cx.ellipse(6,0,18,10,0,0,7);cx.fill();cx.restore()}
+ else if(k==="shark"){cx.save();cx.translate(x,y);cx.scale(dir,1);const sw=Math.sin(t/380)*.14;cx.fillStyle=gcache("shark",()=>{const sg=cx.createLinearGradient(0,-24,0,24);sg.addColorStop(0,"rgba(50,78,100,.95)");sg.addColorStop(.55,"rgba(78,110,135,.92)");sg.addColorStop(.62,"rgba(200,215,225,.9)");sg.addColorStop(1,"rgba(225,235,240,.85)");return sg});cx.beginPath();cx.moveTo(84,4);cx.quadraticCurveTo(70,-16,30,-18);cx.quadraticCurveTo(-30,-14,-70,-3);cx.lineTo(-70,3);cx.quadraticCurveTo(-30,14,30,16);cx.quadraticCurveTo(70,16,84,4);cx.fill();cx.save();cx.translate(-68,0);cx.rotate(sw);cx.fillStyle="rgba(55,82,104,.95)";cx.beginPath();cx.moveTo(4,-2);cx.quadraticCurveTo(-14,-16,-28,-38);cx.quadraticCurveTo(-18,-8,-14,0);cx.quadraticCurveTo(-18,8,-26,24);cx.quadraticCurveTo(-10,10,4,2);cx.fill();cx.restore();cx.fillStyle="rgba(50,78,100,.95)";cx.beginPath();cx.moveTo(16,-16);cx.quadraticCurveTo(4,-34,-10,-50);cx.quadraticCurveTo(-8,-26,-16,-14);cx.fill();cx.beginPath();cx.moveTo(26,10);cx.quadraticCurveTo(10,26,-4,36);cx.quadraticCurveTo(0,20,4,12);cx.fill();cx.strokeStyle="rgba(20,35,50,.5)";cx.lineWidth=1;for(let i=0;i<4;i++){cx.beginPath();cx.moveTo(44-i*5,-8);cx.quadraticCurveTo(42-i*5,-2,44-i*5,4);cx.stroke()}cx.fillStyle="#050a10";cx.beginPath();cx.arc(64,-3,2.3,0,7);cx.fill();cx.fillStyle="rgba(255,255,255,.6)";cx.beginPath();cx.arc(64.7,-3.7,.7,0,7);cx.fill();cx.restore()}
+ else if(k==="whale"){cx.save();cx.translate(x,y);cx.scale(dir,1);const tf=Math.sin(t/1100)*8;cx.fillStyle=gcache("whale",()=>{const wg=cx.createLinearGradient(0,-44,0,44);wg.addColorStop(0,"rgba(20,62,98,.8)");wg.addColorStop(.6,"rgba(12,44,76,.8)");wg.addColorStop(1,"rgba(70,110,140,.6)");return wg});cx.beginPath();cx.moveTo(180,6);cx.quadraticCurveTo(170,-36,80,-42);cx.quadraticCurveTo(-60,-40,-170,-6);cx.lineTo(-170,6);cx.quadraticCurveTo(-60,36,80,40);cx.quadraticCurveTo(170,40,180,6);cx.fill();cx.beginPath();cx.moveTo(-165,0);cx.quadraticCurveTo(-200,-10,-238,-44+tf);cx.quadraticCurveTo(-218,-6,-226,0);cx.quadraticCurveTo(-218,6,-240,42+tf);cx.quadraticCurveTo(-200,10,-165,4);cx.fill();cx.beginPath();cx.moveTo(60,30);cx.quadraticCurveTo(30,70,-10,80);cx.quadraticCurveTo(20,50,30,34);cx.fill();cx.strokeStyle="rgba(150,190,215,.18)";cx.lineWidth=1.2;for(let i=0;i<7;i++){cx.beginPath();cx.moveTo(150-i*12,20);cx.quadraticCurveTo(110-i*12,34,60-i*12,36);cx.stroke()}cx.fillStyle="#04101c";cx.beginPath();cx.arc(140,8,3,0,7);cx.fill();cx.restore()}
+ else if(k==="jelly"){const p=Math.sin(t/520+d)*.13;cx.save();cx.translate(x,y);cx.shadowBlur=lum?30:8;cx.shadowColor=lum?"#9ff4ff":"rgba(255,255,255,.5)";cx.fillStyle=gcache("jelly"+(lum?1:0),()=>{const jg=cx.createRadialGradient(0,-8,2,0,0,28);jg.addColorStop(0,lum?"rgba(230,255,255,.9)":"rgba(255,255,255,.6)");jg.addColorStop(.6,lum?"rgba(140,230,255,.45)":"rgba(255,255,255,.25)");jg.addColorStop(1,lum?"rgba(120,220,255,.2)":"rgba(255,255,255,.1)");return jg});cx.beginPath();cx.ellipse(0,0,26*(1+p),20*(1-p),0,Math.PI,0);cx.quadraticCurveTo(13,6,0,3);cx.quadraticCurveTo(-13,6,-26*(1+p),0);cx.fill();cx.fillStyle=lum?"rgba(255,180,240,.6)":"rgba(255,200,230,.4)";cx.beginPath();for(let i=0;i<4;i++){const ax=Math.cos(i*1.57)*7,ay=-8+Math.sin(i*1.57)*4;cx.moveTo(ax+3.2,ay);cx.arc(ax,ay,3.2,0,7)}cx.fill();cx.strokeStyle=lum?"rgba(170,240,255,.55)":"rgba(255,255,255,.35)";cx.lineWidth=1.1;cx.beginPath();for(let i=-4;i<=4;i++){cx.moveTo(i*5.5,3);for(let j=1;j<10;j++)cx.lineTo(i*5.5+Math.sin(t/380+j*.7+i)*(3+j*.4),3+j*9)}cx.stroke();cx.lineWidth=3;cx.strokeStyle=lum?"rgba(255,190,240,.35)":"rgba(255,220,240,.25)";cx.beginPath();for(let i=-1;i<=1;i++){cx.moveTo(i*6,3);for(let j=1;j<6;j++)cx.lineTo(i*6+Math.sin(t/500+j+i)*6,3+j*10)}cx.stroke();cx.restore()}
+ else if(k==="lantern"){cx.save();for(let i=0;i<18;i++){const a=i*2.4,r=14+(i*11)%40,fx=x+Math.cos(a+t/2600)*r*1.5,fy=y+Math.sin(a+t/2600)*r*.6;fish(fx,fy,.8,.5,dir,"rgba(60,80,110,.8)","rgba(30,40,60,.8)");cx.fillStyle="rgb(140,240,255)";cx.globalAlpha=.5+.5*Math.sin(t/300+i);cx.shadowBlur=10;cx.shadowColor="#8ff7ff";cx.beginPath();for(let j=0;j<3;j++){const lx=fx+dir*(-3+j*4);cx.moveTo(lx+.9,fy+2.6);cx.arc(lx,fy+2.6,.9,0,7)}cx.fill();cx.globalAlpha=1;cx.shadowBlur=0}cx.restore()}
+ else if(k==="hatchet"){cx.save();for(let i=0;i<6;i++){const fx=x+(i%3)*40,fy=y+Math.floor(i/3)*34+Math.sin(t/600+i)*4;cx.save();cx.translate(fx,fy);cx.scale(dir,1);cx.fillStyle=gcache("hatchet",()=>{const g=cx.createLinearGradient(0,-10,0,10);g.addColorStop(0,"rgba(190,210,230,.85)");g.addColorStop(1,"rgba(110,140,170,.75)");return g});cx.beginPath();cx.moveTo(10,-6);cx.lineTo(-6,-7);cx.lineTo(-10,0);cx.quadraticCurveTo(-2,14,8,6);cx.closePath();cx.fill();cx.beginPath();cx.moveTo(-9,0);cx.lineTo(-15,-4);cx.lineTo(-15,4);cx.fill();cx.fillStyle="#fff";cx.beginPath();cx.arc(6,-3,2.4,0,7);cx.fill();cx.fillStyle="#000";cx.beginPath();cx.arc(6.4,-3,1.3,0,7);cx.fill();cx.fillStyle="rgba(150,240,255,.85)";cx.shadowBlur=8;cx.shadowColor="#8ff7ff";cx.beginPath();for(let j=0;j<4;j++){cx.moveTo(4.9-j*3,6-j*1.4);cx.arc(4-j*3,6-j*1.4,.9,0,7)}cx.fill();cx.restore()}cx.restore()}
+ else if(k==="squid"){cx.save();cx.translate(x,y);cx.rotate(-.5+Math.sin(t/1600)*.12);cx.shadowBlur=18;cx.shadowColor="#ff8a7a";cx.fillStyle=gcache("squid",()=>{const g2=cx.createLinearGradient(-14,0,14,0);g2.addColorStop(0,"rgba(220,90,80,.55)");g2.addColorStop(.5,"rgba(255,160,140,.75)");g2.addColorStop(1,"rgba(220,90,80,.55)");return g2});cx.beginPath();cx.moveTo(0,-56);cx.quadraticCurveTo(20,-12,13,36);cx.lineTo(-13,36);cx.quadraticCurveTo(-20,-12,0,-56);cx.fill();cx.beginPath();cx.moveTo(0,-56);cx.lineTo(16,-38);cx.lineTo(-16,-38);cx.fill();cx.fillStyle="rgba(255,255,255,.7)";cx.beginPath();cx.arc(-7,28,3,0,7);cx.arc(7,28,3,0,7);cx.fill();cx.strokeStyle="rgba(255,150,130,.6)";cx.lineWidth=2.2;cx.lineCap="round";for(let i=-3;i<=3;i++){cx.beginPath();cx.moveTo(i*3,36);cx.quadraticCurveTo(i*6+Math.sin(t/300+i)*7,64,i*5+Math.sin(t/400+i)*4,88);cx.stroke()}cx.lineWidth=1.4;for(const s of[-1,1]){cx.beginPath();cx.moveTo(s*4,36);cx.bezierCurveTo(s*14,80,s*4+Math.sin(t/350)*10,110,s*16,128);cx.stroke()}cx.restore()}
+ else if(k==="vampire"){cx.save();cx.translate(x,y);const p=Math.sin(t/900);cx.shadowBlur=14;cx.shadowColor="#5ff";cx.fillStyle=gcache("vampire",()=>{const vg=cx.createRadialGradient(0,-6,2,0,0,40);vg.addColorStop(0,"rgba(150,40,50,.85)");vg.addColorStop(1,"rgba(70,10,20,.8)");return vg});cx.beginPath();cx.ellipse(0,-14,14,18,0,0,7);cx.fill();cx.beginPath();cx.moveTo(-12,-2);for(let i=0;i<=8;i++){const a=Math.PI*(i/8),r=34+p*8+(i%2)*6;cx.lineTo(Math.cos(a)*r*-1,Math.sin(a)*r*.7+4)}cx.lineTo(12,-2);cx.fill();cx.beginPath();cx.ellipse(-12,-28,6,3,-.6,0,7);cx.ellipse(12,-28,6,3,.6,0,7);cx.fill();cx.fillStyle="rgba(120,255,255,.9)";cx.beginPath();cx.arc(-6,-14,2.4,0,7);cx.arc(6,-14,2.4,0,7);cx.fill();cx.restore()}
  else if(k==="eel"){cx.save();cx.translate(x,y);cx.scale(dir,1);cx.strokeStyle="rgba(15,15,22,.9)";cx.lineCap="round";for(let w=6;w>0;w-=2){cx.lineWidth=w;cx.beginPath();for(let i=0;i<=30;i++){const xx=-i*7,yy=Math.sin(t/300-i*.35)*(4+i*.5);i?cx.lineTo(xx,yy):cx.moveTo(xx,yy)}cx.stroke()}cx.fillStyle="rgba(20,18,28,.95)";cx.beginPath();cx.moveTo(0,0);cx.quadraticCurveTo(22,-22,34,-6);cx.lineTo(4,2);cx.quadraticCurveTo(24,24,34,10);cx.lineTo(4,4);cx.fill();const tx=-210,ty=Math.sin(t/300-30*.35)*19;cx.fillStyle=`rgba(255,120,190,${.6+.4*Math.sin(t/250)})`;cx.shadowBlur=14;cx.shadowColor="#ff7ac8";cx.beginPath();cx.arc(tx,ty,3,0,7);cx.fill();cx.restore()}
  else if(k==="siph"){cx.save();cx.shadowBlur=16;cx.shadowColor="#8ff7ff";for(let i=0;i<26;i++){const ppx=x+Math.sin(t/900+i*.35)*30+i*9,ppy=y+Math.sin(i*.5+t/1100)*14;cx.fillStyle=`rgba(160,250,255,${.25+.45*Math.max(0,Math.sin(t/300-i*.4))})`;cx.beginPath();cx.arc(ppx,ppy,2.4,0,7);cx.fill();if(i%3===0){cx.strokeStyle="rgba(160,250,255,.18)";cx.lineWidth=.8;cx.beginPath();cx.moveTo(ppx,ppy);cx.lineTo(ppx+Math.sin(t/400+i)*5,ppy+26);cx.stroke()}}cx.restore()}
- else if(k==="dumbo"){cx.save();cx.translate(x,y+Math.sin(t/900)*8);const e=Math.sin(t/350)*.5;const dg=cx.createRadialGradient(-4,-8,2,0,0,26);dg.addColorStop(0,"rgba(255,200,190,.9)");dg.addColorStop(1,"rgba(220,120,120,.8)");cx.fillStyle=dg;cx.save();cx.translate(-16,-10);cx.rotate(-.6+e);cx.beginPath();cx.ellipse(0,0,10,5,0,0,7);cx.fill();cx.restore();cx.save();cx.translate(16,-10);cx.rotate(.6-e);cx.beginPath();cx.ellipse(0,0,10,5,0,0,7);cx.fill();cx.restore();cx.beginPath();cx.ellipse(0,-4,17,15,0,0,7);cx.fill();cx.beginPath();cx.moveTo(-16,2);for(let i=0;i<=8;i++){const xx=-16+i*4;cx.lineTo(xx,14+Math.sin(t/300+i)*3+(i%2)*4)}cx.lineTo(16,2);cx.fill();cx.fillStyle="#2a0a0a";cx.beginPath();cx.arc(-6,-4,2.2,0,7);cx.arc(6,-4,2.2,0,7);cx.fill();cx.restore()}
- else if(k==="angler"){cx.save();cx.translate(x,y);cx.scale(dir||1,1);const ag=cx.createRadialGradient(6,-6,4,0,0,40);ag.addColorStop(0,"rgba(50,44,58,.95)");ag.addColorStop(1,"rgba(8,8,12,.92)");cx.fillStyle=ag;cx.beginPath();cx.moveTo(36,6);cx.quadraticCurveTo(34,-26,0,-26);cx.quadraticCurveTo(-30,-22,-34,0);cx.quadraticCurveTo(-30,22,0,24);cx.quadraticCurveTo(26,24,36,10);cx.fill();cx.beginPath();cx.moveTo(-30,0);cx.lineTo(-56,-18);cx.quadraticCurveTo(-48,0,-56,18);cx.fill();cx.fillStyle="rgba(12,10,16,.95)";cx.beginPath();cx.moveTo(36,6);cx.lineTo(10,10);cx.lineTo(34,14);cx.fill();cx.strokeStyle="rgba(240,240,230,.75)";cx.lineWidth=1.1;for(let i=0;i<6;i++){cx.beginPath();cx.moveTo(14+i*3.6,7);cx.lineTo(15+i*3.6,1);cx.moveTo(14+i*3.6,11);cx.lineTo(15+i*3.6,16);cx.stroke()}cx.fillStyle="rgba(200,220,255,.35)";cx.beginPath();cx.arc(16,-8,3.4,0,7);cx.fill();cx.strokeStyle="rgba(255,255,255,.25)";cx.beginPath();cx.moveTo(14,-22);cx.quadraticCurveTo(30,-56,52,-38);cx.stroke();cx.restore()}
- else if(k==="snail"){cx.save();cx.translate(x,y);cx.scale(dir||1,1);const sg=cx.createLinearGradient(0,-12,0,12);sg.addColorStop(0,"rgba(255,230,240,.5)");sg.addColorStop(1,"rgba(230,180,200,.35)");cx.fillStyle=sg;cx.beginPath();cx.ellipse(0,0,32,12,0,0,7);cx.fill();cx.beginPath();cx.moveTo(-28,-3);cx.quadraticCurveTo(-58,-6+Math.sin(t/420)*7,-76,0);cx.quadraticCurveTo(-58,6,-28,5);cx.fill();cx.fillStyle="rgba(20,0,10,.6)";cx.beginPath();cx.arc(20,-3,2,0,7);cx.fill();cx.restore()}}
+ else if(k==="dumbo"){cx.save();cx.translate(x,y+Math.sin(t/900)*8);const e=Math.sin(t/350)*.5;cx.fillStyle=gcache("dumbo",()=>{const dg=cx.createRadialGradient(-4,-8,2,0,0,26);dg.addColorStop(0,"rgba(255,200,190,.9)");dg.addColorStop(1,"rgba(220,120,120,.8)");return dg});cx.save();cx.translate(-16,-10);cx.rotate(-.6+e);cx.beginPath();cx.ellipse(0,0,10,5,0,0,7);cx.fill();cx.restore();cx.save();cx.translate(16,-10);cx.rotate(.6-e);cx.beginPath();cx.ellipse(0,0,10,5,0,0,7);cx.fill();cx.restore();cx.beginPath();cx.ellipse(0,-4,17,15,0,0,7);cx.fill();cx.beginPath();cx.moveTo(-16,2);for(let i=0;i<=8;i++){const xx=-16+i*4;cx.lineTo(xx,14+Math.sin(t/300+i)*3+(i%2)*4)}cx.lineTo(16,2);cx.fill();cx.fillStyle="#2a0a0a";cx.beginPath();cx.arc(-6,-4,2.2,0,7);cx.arc(6,-4,2.2,0,7);cx.fill();cx.restore()}
+ else if(k==="angler"){cx.save();cx.translate(x,y);cx.scale(dir||1,1);cx.fillStyle=gcache("angler",()=>{const ag=cx.createRadialGradient(6,-6,4,0,0,40);ag.addColorStop(0,"rgba(50,44,58,.95)");ag.addColorStop(1,"rgba(8,8,12,.92)");return ag});cx.beginPath();cx.moveTo(36,6);cx.quadraticCurveTo(34,-26,0,-26);cx.quadraticCurveTo(-30,-22,-34,0);cx.quadraticCurveTo(-30,22,0,24);cx.quadraticCurveTo(26,24,36,10);cx.fill();cx.beginPath();cx.moveTo(-30,0);cx.lineTo(-56,-18);cx.quadraticCurveTo(-48,0,-56,18);cx.fill();cx.fillStyle="rgba(12,10,16,.95)";cx.beginPath();cx.moveTo(36,6);cx.lineTo(10,10);cx.lineTo(34,14);cx.fill();cx.strokeStyle="rgba(240,240,230,.75)";cx.lineWidth=1.1;for(let i=0;i<6;i++){cx.beginPath();cx.moveTo(14+i*3.6,7);cx.lineTo(15+i*3.6,1);cx.moveTo(14+i*3.6,11);cx.lineTo(15+i*3.6,16);cx.stroke()}cx.fillStyle="rgba(200,220,255,.35)";cx.beginPath();cx.arc(16,-8,3.4,0,7);cx.fill();cx.strokeStyle="rgba(255,255,255,.25)";cx.beginPath();cx.moveTo(14,-22);cx.quadraticCurveTo(30,-56,52,-38);cx.stroke();cx.restore()}
+ else if(k==="snail"){cx.save();cx.translate(x,y);cx.scale(dir||1,1);cx.fillStyle=gcache("snail",()=>{const sg=cx.createLinearGradient(0,-12,0,12);sg.addColorStop(0,"rgba(255,230,240,.5)");sg.addColorStop(1,"rgba(230,180,200,.35)");return sg});cx.beginPath();cx.ellipse(0,0,32,12,0,0,7);cx.fill();cx.beginPath();cx.moveTo(-28,-3);cx.quadraticCurveTo(-58,-6+Math.sin(t/420)*7,-76,0);cx.quadraticCurveTo(-58,6,-28,5);cx.fill();cx.fillStyle="rgba(20,0,10,.6)";cx.beginPath();cx.arc(20,-3,2,0,7);cx.fill();cx.restore()}}
 function lure(x,y,t,dir){const lx=x+(dir||1)*52,gl=.65+Math.sin(t/280)*.35;cx.save();cx.shadowBlur=36;cx.shadowColor="#ffd36e";cx.fillStyle=`rgba(255,228,150,${gl})`;cx.beginPath();cx.arc(lx,y-38,5,0,7);cx.fill();cx.globalAlpha=gl*.15;cx.beginPath();cx.arc(lx,y-38,30,0,7);cx.fill();cx.restore()}
 /* ---------- další živočichové (bez úprav původní funkce creature: neznámé druhy obslouží CR2) ---------- */
 // barevné rybky útesu: sprite pro každou barvu a směr, pak jen drawImage
@@ -440,13 +473,13 @@ function diver(x,y,t,tilt,P){const sp=230-kick*90,ka=P?P.kk:1,k=Math.sin(t/sp)*(
   if(leg>0){const sw=Math.sin(t/820+o)*.1*(1-tuck),aT=Math.PI/2-tuck*.9+(o>0?.1:0),aS=aT+Math.PI/2+tuck*.5+sw,qx=hx+Math.cos(aT)*18,qy=hy+Math.sin(aT)*18;
    kx+=(qx-kx)*leg;ky+=(qy-ky)*leg;fx+=(qx+Math.cos(aS)*17-fx)*leg;fy+=(qy+Math.sin(aS)*17-fy)*leg}
   cx.strokeStyle=sh<1?"#0d141c":suit;cx.lineWidth=8.5;cx.lineCap="round";cx.lineJoin="round";cx.beginPath();cx.moveTo(hx,hy);cx.lineTo(kx,ky);cx.lineTo(fx,fy);cx.stroke();
-  cx.save();cx.translate(fx,fy);cx.rotate(Math.atan2(fy-ky,fx-kx)+Math.PI+kk*.35*(1-leg)-leg*.4);const fg=cx.createLinearGradient(-30,0,0,0);fg.addColorStop(0,sh<1?"rgba(200,95,75,.75)":"rgba(255,140,110,.8)");fg.addColorStop(1,sh<1?"#c8644e":acc);cx.fillStyle=fg;cx.beginPath();cx.moveTo(2,-3.5);cx.quadraticCurveTo(-14,-11,-34,-10);cx.quadraticCurveTo(-28,0,-34,10);cx.quadraticCurveTo(-14,11,2,3.5);cx.fill();cx.strokeStyle="rgba(255,255,255,.25)";cx.lineWidth=.8;cx.beginPath();cx.moveTo(-4,-1);cx.lineTo(-30,-3);cx.moveTo(-4,1);cx.lineTo(-30,3);cx.stroke();cx.restore()}
+  cx.save();cx.translate(fx,fy);cx.rotate(Math.atan2(fy-ky,fx-kx)+Math.PI+kk*.35*(1-leg)-leg*.4);cx.fillStyle=gcache("fin"+sh,()=>{const fg=cx.createLinearGradient(-30,0,0,0);fg.addColorStop(0,sh<1?"rgba(200,95,75,.75)":"rgba(255,140,110,.8)");fg.addColorStop(1,sh<1?"#c8644e":acc);return fg});cx.beginPath();cx.moveTo(2,-3.5);cx.quadraticCurveTo(-14,-11,-34,-10);cx.quadraticCurveTo(-28,0,-34,10);cx.quadraticCurveTo(-14,11,2,3.5);cx.fill();cx.strokeStyle="rgba(255,255,255,.25)";cx.lineWidth=.8;cx.beginPath();cx.moveTo(-4,-1);cx.lineTo(-30,-3);cx.moveTo(-4,1);cx.lineTo(-30,3);cx.stroke();cx.restore()}
  // láhev
- const tg=cx.createLinearGradient(0,-24,0,-10);tg.addColorStop(0,"#fff4c8");tg.addColorStop(.35,"#f4cb55");tg.addColorStop(1,"#a97a14");cx.fillStyle=tg;cx.beginPath();cx.roundRect(-22,-23,40,11,5.5);cx.fill();cx.fillStyle="rgba(0,0,0,.25)";cx.fillRect(-12,-23,2,11);cx.fillRect(6,-23,2,11);cx.fillStyle="#3b3f45";cx.beginPath();cx.roundRect(17,-21,6,7,2);cx.fill();cx.fillStyle="#d9dee3";cx.beginPath();cx.arc(24,-17.5,2.2,0,7);cx.fill();
+ cx.fillStyle=gcache("tank",()=>{const tg=cx.createLinearGradient(0,-24,0,-10);tg.addColorStop(0,"#fff4c8");tg.addColorStop(.35,"#f4cb55");tg.addColorStop(1,"#a97a14");return tg});cx.beginPath();cx.roundRect(-22,-23,40,11,5.5);cx.fill();cx.fillStyle="rgba(0,0,0,.25)";cx.fillRect(-12,-23,2,11);cx.fillRect(6,-23,2,11);cx.fillStyle="#3b3f45";cx.beginPath();cx.roundRect(17,-21,6,7,2);cx.fill();cx.fillStyle="#d9dee3";cx.beginPath();cx.arc(24,-17.5,2.2,0,7);cx.fill();
  // trup
- const bg=cx.createLinearGradient(0,-13,0,11);bg.addColorStop(0,suit2);bg.addColorStop(.5,suit);bg.addColorStop(1,"#0a0f15");cx.fillStyle=bg;cx.beginPath();cx.moveTo(20,-9);cx.quadraticCurveTo(4,-14,-18,-8);cx.quadraticCurveTo(-24,0,-18,7);cx.quadraticCurveTo(4,12,20,7);cx.quadraticCurveTo(26,-1,20,-9);cx.fill();
+ cx.fillStyle=gcache("torso",()=>{const bg=cx.createLinearGradient(0,-13,0,11);bg.addColorStop(0,suit2);bg.addColorStop(.5,suit);bg.addColorStop(1,"#0a0f15");return bg});cx.beginPath();cx.moveTo(20,-9);cx.quadraticCurveTo(4,-14,-18,-8);cx.quadraticCurveTo(-24,0,-18,7);cx.quadraticCurveTo(4,12,20,7);cx.quadraticCurveTo(26,-1,20,-9);cx.fill();
  // vesta BCD
- const vg=cx.createLinearGradient(0,-12,0,10);vg.addColorStop(0,"#3c5470");vg.addColorStop(1,"#1d2b3c");cx.fillStyle=vg;cx.beginPath();cx.moveTo(18,-9);cx.quadraticCurveTo(6,-12,-6,-10);cx.lineTo(-8,6);cx.quadraticCurveTo(6,10,18,6);cx.closePath();cx.fill();cx.fillStyle=acc;cx.fillRect(-6,-3,24,2.4);cx.fillStyle="#9aa4ad";cx.beginPath();cx.roundRect(-14,4,6,5,1.2);cx.fill();cx.fillStyle="#2b2f34";cx.fillRect(-18,3,30,2.2);
+ cx.fillStyle=gcache("bcd",()=>{const vg=cx.createLinearGradient(0,-12,0,10);vg.addColorStop(0,"#3c5470");vg.addColorStop(1,"#1d2b3c");return vg});cx.beginPath();cx.moveTo(18,-9);cx.quadraticCurveTo(6,-12,-6,-10);cx.lineTo(-8,6);cx.quadraticCurveTo(6,10,18,6);cx.closePath();cx.fill();cx.fillStyle=acc;cx.fillRect(-6,-3,24,2.4);cx.fillStyle="#9aa4ad";cx.beginPath();cx.roundRect(-14,4,6,5,1.2);cx.fill();cx.fillStyle="#2b2f34";cx.fillRect(-18,3,30,2.2);
  // hadice k automatice (konec se otáčí s hlavou)
  const[rx0,ry0]=rot2(7.5,7,neck),rx=30+rx0,ry=-6+ry0;
  cx.strokeStyle="#1b1f24";cx.lineWidth=2;cx.beginPath();cx.moveTo(22,-16);cx.bezierCurveTo(30,-18,rx-1,ry-9,rx-.5,ry-1);cx.stroke();cx.strokeStyle="#ffcc4d";cx.lineWidth=1.6;cx.beginPath();cx.moveTo(20,-14);cx.bezierCurveTo(14,4,22,12,26,10);cx.stroke();
@@ -454,8 +487,8 @@ function diver(x,y,t,tilt,P){const sp=230-kick*90,ka=P?P.kk:1,k=Math.sin(t/sp)*(
  const ax=Math.sin(t/900)*2,bx2=30+(-12-30)*leg,by2=10+ax+(-8-10-ax)*leg;limb(14,-2,bx2,by2,-3+leg*7,5.5,"#0d141c");cx.fillStyle="#0d141c";cx.beginPath();cx.arc(bx2,by2,3,0,7);cx.fill();
  // hlava (s krkem: v sedu se dívá dopředu, při plavání před sebe)
  cx.save();if(neck){cx.translate(30,-6);cx.rotate(neck);cx.translate(-30,6)}
- const hg=cx.createRadialGradient(28,-9,1,30,-6,10);hg.addColorStop(0,suit2);hg.addColorStop(1,suit);cx.fillStyle=hg;cx.beginPath();cx.arc(30,-6,9,0,7);cx.fill();cx.strokeStyle="#0a0e13";cx.lineWidth=1.4;cx.beginPath();cx.arc(30,-6,8,-2.2,-.6);cx.stroke();
- const mg=cx.createLinearGradient(32,-13,41,-3);mg.addColorStop(0,"#e5fdff");mg.addColorStop(.35,"#6fd8ef");mg.addColorStop(1,"#155d80");cx.fillStyle="#111";cx.beginPath();cx.roundRect(31,-13.5,11,10,3.5);cx.fill();cx.fillStyle=mg;cx.beginPath();cx.roundRect(32.3,-12.3,8.6,7.6,2.6);cx.fill();cx.fillStyle="rgba(255,255,255,.85)";cx.beginPath();cx.moveTo(33.4,-11.4);cx.lineTo(36,-11.4);cx.lineTo(34,-7);cx.lineTo(33.4,-7);cx.fill();
+ cx.fillStyle=gcache("hood",()=>{const hg=cx.createRadialGradient(28,-9,1,30,-6,10);hg.addColorStop(0,suit2);hg.addColorStop(1,suit);return hg});cx.beginPath();cx.arc(30,-6,9,0,7);cx.fill();cx.strokeStyle="#0a0e13";cx.lineWidth=1.4;cx.beginPath();cx.arc(30,-6,8,-2.2,-.6);cx.stroke();
+ cx.fillStyle="#111";cx.beginPath();cx.roundRect(31,-13.5,11,10,3.5);cx.fill();cx.fillStyle=gcache("mask",()=>{const mg=cx.createLinearGradient(32,-13,41,-3);mg.addColorStop(0,"#e5fdff");mg.addColorStop(.35,"#6fd8ef");mg.addColorStop(1,"#155d80");return mg});cx.beginPath();cx.roundRect(32.3,-12.3,8.6,7.6,2.6);cx.fill();cx.fillStyle="rgba(255,255,255,.85)";cx.beginPath();cx.moveTo(33.4,-11.4);cx.lineTo(36,-11.4);cx.lineTo(34,-7);cx.lineTo(33.4,-7);cx.fill();
  cx.fillStyle="#2d3238";cx.beginPath();cx.arc(37.5,1,3.2,0,7);cx.fill();cx.fillStyle="#ffcc4d";cx.fillRect(36.2,-.4,2.6,1.2);
  cx.fillStyle="#1d2228";cx.beginPath();cx.roundRect(25,-16.5,7,4.5,1.5);cx.fill();cx.fillStyle="#fff8d8";cx.beginPath();cx.arc(31.6,-14.3,1.6,0,7);cx.fill();
  cx.restore();
@@ -526,7 +559,7 @@ function boat(t){const L=S.L,H1=L*.16,G=boatG(L);cx.save();cx.translate(S.bx,S.b
  cx.save();cx.beginPath();cx.rect(-L,0,L*2,L*.2);cx.clip();cx.fillStyle=G.under;hull();cx.fill();cx.restore();
  cx.restore()}
 /* místo, kde je na úvodní / koncové obrazovce hladina a jak velká je loď: v prostoru mezi HUD a kartou */
-function deckLayout(){const top=vTop+64,ct=vTop+Math.max(card.offsetTop,150),free=ct-top,L=Math.max(130,Math.min(W*.6,300,free*1.25));
+function deckLayout(){const top=vTop+64,ct=vTop+Math.max(geo().top,150),free=ct-top,L=Math.max(130,Math.min(W*.6,300,free*1.25));
  return{wl:top+Math.max(free*.8,L*.56+8),L,bx:Math.max(L*.62,Math.min(W*.56,W-L*.6))}}
 function seat(t){const H1=S.L*.16,[a,b]=rot2(-S.L*.455,-H1-1,S.r);return{x:S.bx+a,y:S.by+b,rot:-Math.PI/2+S.r+Math.sin(t/1900)*.03}}
 function fromHip(hx,hy,rot,sc){const k=1.18*sc,[a,b]=rot2(-17*k,k,rot);return[hx-a,hy-b]}
@@ -604,42 +637,46 @@ function splashFx(t,dt,sY){
  if(crown){const k=(crown.a+=dt)/480;if(k>=1)crown=null;else{const h=(S.sc0*70+14)*Math.sin(Math.PI*Math.min(1,k*1.15)),w=7+k*10;cx.fillStyle=`rgba(240,252,255,${.85*(1-k)})`;cx.beginPath();
   for(let i=-3;i<=3;i++){const bx=crown.x+i*w,hh=h*(1-Math.abs(i)/4.2),lean=i*k*4;cx.moveTo(bx-w*.45,sY+2);cx.quadraticCurveTo(bx+lean*.5,sY-hh*.6,bx+lean,sY-hh);cx.quadraticCurveTo(bx+lean*.5+w*.2,sY-hh*.5,bx+w*.45,sY+2)}cx.fill()}}
  if(drops.length){cx.fillStyle="rgba(245,253,255,.95)";cx.beginPath();for(const d of drops){const y=sY+d.y;cx.moveTo(d.x+d.r,y);cx.arc(d.x,y,d.r,0,7)}cx.fill()}}
-function draw(t){const dt=Math.min(t-lastT,50)||16;lastT=t;frameAvg=frameAvg*.95+dt*.05;
- if(t>8000&&frameAvg>24&&Q>0&&!draw.cool){Q--;SBK=0;draw.cool=1;setTimeout(()=>draw.cool=0,3000);rs()}
+function draw(t){const dt=Math.min(t-lastT,50)||16,t0=FPS?performance.now():0;lastT=t;frameAvg=frameAvg*.95+dt*.05;
+ // adaptivní kvalita: při dlouhodobě pomalých snímcích sníží, po 15 s plynulého běhu ji (nejvýš dvakrát) zase vrátí
+ if(t>8000&&!draw.cool){if(frameAvg>24&&Q>0){Q--;SBK=0;draw.good=0;coolQ()}
+  else if(Q<Q0&&draw.ups<2){if(frameAvg<17.4){if((draw.good+=dt)>15000){Q++;draw.ups++;draw.good=0;if(Q===Q0)SBK=MOBILE?0:1;coolQ()}}else draw.good=0}}
  const prev=depth;if(S.m==="asc"){S.e+=dt;depth=S.aD*(1-eIO(seg(S.e,0,S.aT)));if(S.e>=S.aT){depth=0;S.m="surf";S.e=0;S.s0=null;S.pop=false}}else depth+=(target-depth)*(RM?1:Math.min(1,dt/ease));const v=depth-prev;
  kick=Math.max(0,kick-dt/1400);hurt=Math.max(0,hurt-dt/700);
  // potápěč v prostoru mezi HUD a kartou
- const freeTop=vTop+66,freeBot=vTop+Math.max(card.offsetTop,140);const playing=stage.classList.contains("play");const want=playing?Math.min(vTop+card.offsetTop+card.offsetHeight+95,H-70):Math.max(freeTop+40,Math.min(freeTop+(freeBot-freeTop)*.42,vTop+230));dyS+=(want-dyS)*Math.min(1,dt/350);
+ const g0=geo(),freeTop=vTop+66,freeBot=vTop+Math.max(g0.top,140);const playing=g0.play;const want=playing?Math.min(vTop+g0.top+g0.h+95,H-70):Math.max(freeTop+40,Math.min(freeTop+(freeBot-freeTop)*.42,vTop+230));dyS+=(want-dyS)*Math.min(1,dt/350);
  const dxp=W*.5+Math.sin(t/3100)*W*.04,dyp=dyS+Math.sin(t/900)*6+hurt*Math.sin(t/30)*4;
  tiltV+=((dt>0?v/dt*1000:0)-tiltV)*Math.min(1,dt/220); // rychlost klesání v m/s, vyhlazená (stejně při 60 i 120 Hz)
  const tilt=.16+Math.sin(t/1300)*.05+Math.max(-.4,Math.min(tiltV*.0005,.55))+kick*.22-(target<depth-5?1:0);
  const sY=sceneStep(t,dt,dxp,dyp,tilt),co=S.co,dco=co-S.coP;S.coP=co;
  if(dco){for(const b of bub)b.y+=dco;for(const s of snow)s.y=((s.y+dco/H)%1+1)%1}
  const yOf=d=>dyp+40+(d-depth)*(H/900)+co;
- const top=col(Math.max(0,depth-160)),bot=col(depth+750);
- const g=cx.createLinearGradient(0,0,0,H);g.addColorStop(0,rgb(top));g.addColorStop(1,rgb(bot));cx.fillStyle=g;cx.fillRect(0,0,W,H);
+ cx.fillStyle=waterG(col(Math.max(0,depth-160)),col(depth+750));cx.fillRect(0,0,W,H);
  cx.save();cx.globalCompositeOperation="lighter";
- const ra=Math.max(0,1-depth/700)*.15,r0=Math.max(0,sY);if(ra>.002&&r0<H){for(let i=0;i<7;i++){const x=W*(i/6)+Math.sin(t/3400+i*1.7)*70,w=50+(i*37)%90;const lg=cx.createLinearGradient(0,r0,0,H*.95+r0);lg.addColorStop(0,`rgba(255,255,255,${ra*(1+Math.sin(t/1800+i)*.4)})`);lg.addColorStop(1,"rgba(255,255,255,0)");cx.fillStyle=lg;cx.beginPath();cx.moveTo(x-w/2,r0);cx.lineTo(x+w/2,r0);cx.lineTo(x+w*1.7-W*.12,H);cx.lineTo(x-w*1.3-W*.12,H);cx.fill()}}
- const ca=Q>=1?Math.max(0,1-depth/260)*.1:0;if(ca>.002){cx.strokeStyle=`rgba(255,255,255,${ca})`;cx.lineWidth=2;for(let j=0;j<5;j++){cx.beginPath();for(let x=0;x<=W;x+=14){const y=vTop+H*.04+j*28+Math.sin(x/53+t/900+j)*9+Math.sin(x/21-t/700)*4-depth*(H/900)+co;x?cx.lineTo(x,y):cx.moveTo(x,y)}cx.stroke()}}
+ // paprsky světla: jeden uložený gradient, jas každého paprsku přes globalAlpha
+ const ra=Math.max(0,1-depth/700)*.15,r0=Math.max(0,sY);if(ra>.002&&r0<H){cx.translate(0,r0);cx.fillStyle=gcache("ray"+H,()=>{const g=cx.createLinearGradient(0,0,0,H*.95);g.addColorStop(0,"rgba(255,255,255,1)");g.addColorStop(1,"rgba(255,255,255,0)");return g});const hb=H-r0;
+  for(let i=0;i<7;i++){const x=W*(i/6)+Math.sin(t/3400+i*1.7)*70,w=50+(i*37)%90;cx.globalAlpha=ra*(1+Math.sin(t/1800+i)*.4);cx.beginPath();cx.moveTo(x-w/2,0);cx.lineTo(x+w/2,0);cx.lineTo(x+w*1.7-W*.12,hb);cx.lineTo(x-w*1.3-W*.12,hb);cx.fill()}cx.globalAlpha=1;cx.translate(0,-r0)}
+ const ca=Q>=1?Math.max(0,1-depth/260)*.1:0;if(ca>.002){cx.strokeStyle="#fff";cx.globalAlpha=ca;cx.lineWidth=2;for(let j=0;j<5;j++){cx.beginPath();for(let x=0;x<=W;x+=14){const y=vTop+H*.04+j*28+Math.sin(x/53+t/900+j)*9+Math.sin(x/21-t/700)*4-depth*(H/900)+co;x?cx.lineTo(x,y):cx.moveTo(x,y)}cx.stroke()}cx.globalAlpha=1}
  cx.restore();
  scenery(t,yOf,sY); // útes, vraky, průduchy, dno a příkop (za živočichy)
  cx.font="600 11px -apple-system,Inter,sans-serif";cx.textBaseline="middle";
- for(let m=Math.max(500,Math.floor((depth-500)/500)*500);m<depth+900;m+=500){const y=yOf(m);if(y<0||y>H)continue;cx.strokeStyle="rgba(255,255,255,.12)";cx.setLineDash([3,6]);cx.beginPath();cx.moveTo(0,y);cx.lineTo(W*.22,y);cx.stroke();cx.setLineDash([]);cx.fillStyle="rgba(255,255,255,.35)";cx.fillText(m.toLocaleString("cs-CZ")+" m",10,y-9)}
+ for(let m=Math.max(500,Math.floor((depth-500)/500)*500);m<depth+900;m+=500){const y=yOf(m);if(y<0||y>H)continue;cx.strokeStyle="rgba(255,255,255,.12)";cx.setLineDash([3,6]);cx.beginPath();cx.moveTo(0,y);cx.lineTo(W*.22,y);cx.stroke();cx.setLineDash([]);cx.fillStyle="rgba(255,255,255,.35)";cx.fillText(mLabel(m),10,y-9)}
  const deep=Math.min(1,Math.max(0,(depth-600)/1800));
- const GLOWY=new Set(["jelly","siph","lantern","hatchet","eel","vampire"]);
- const vis=LIFE.map(([k,d,xf,s])=>({k,d,x:px(xf,s,t,d),y:yOf(d),dir:s<0?-1:1})).filter(c=>c.y>-260&&c.y<H+260&&c.y>sY+40);
- for(const c of vis){if(deep>.4&&GLOWY.has(c.k))continue;creature(c.k,c.x,c.y,t,c.d,depth>900,c.dir)}
+ // živočichové: pole objektů se nealokuje v každém snímku, jen se přepočítá poloha
+ for(const c of LIVE){c.y=yOf(c.d);c.on=c.y>-260&&c.y<H+260&&c.y>sY+40;if(c.on)c.x=px(c.xf,c.s,t,c.d)}
+ for(const c of LIVE){if(!c.on||deep>.4&&GLOWY.has(c.k))continue;creature(c.k,c.x,c.y,t,c.d,depth>900,c.dir)}
  const sp=v*.9+.12,SN=Q>=2?snow.length:Q>=1?100:60;cx.fillStyle=depth>900?"rgba(200,245,255,.32)":"rgba(255,255,255,.22)";cx.beginPath();for(let i=0;i<SN;i++){const s=snow[i];s.y-=(sp*s.r*.004*s.z)+.00018*s.r;if(s.y<0){s.y=1;s.x=Math.random()}if(s.y>1)s.y=0;const x=s.x*W+Math.sin(t/2100+s.w)*6,y=s.y*H;if(y<sY+4)continue;cx.moveTo(x+s.r,y);cx.arc(x,y,s.r,0,7)}cx.fill();
  const swim=S.m==="dive"||S.m==="asc";
  const[hx,hy]=head(dxp,dyp,tilt);
- if(deep>0){dx.globalCompositeOperation="source-over";dx.clearRect(0,0,W*2,H*2);dx.fillStyle=`rgba(0,3,10,${.84*deep})`;dx.fillRect(0,0,W,H);dx.globalCompositeOperation="destination-out";
-  const ang=tilt+.32+Math.sin(t/2300)*.08,len=Math.max(W,H)*.8,spr=.34;const lg=dx.createRadialGradient(hx,hy,0,hx,hy,len);lg.addColorStop(0,"rgba(0,0,0,1)");lg.addColorStop(.5,"rgba(0,0,0,.78)");lg.addColorStop(1,"rgba(0,0,0,0)");dx.fillStyle=lg;dx.beginPath();dx.moveTo(hx,hy);dx.arc(hx,hy,len,ang-spr,ang+spr);dx.closePath();dx.fill();
-  const hg=dx.createRadialGradient(dxp,dyp,0,dxp,dyp,130);hg.addColorStop(0,"rgba(0,0,0,.92)");hg.addColorStop(1,"rgba(0,0,0,0)");dx.fillStyle=hg;dx.beginPath();dx.arc(dxp,dyp,130,0,7);dx.fill();
+ // tma v hlubině s kuželem čelovky (poloviční rozlišení); gradienty jsou uložené a posouvají se na hlavu / tělo potápěče
+ if(deep>0){dx.globalCompositeOperation="copy";dx.fillStyle="rgb(0,3,10)";dx.globalAlpha=.84*deep;dx.fillRect(0,0,W,H);dx.globalAlpha=1;dx.globalCompositeOperation="destination-out";
+  const ang=tilt+.32+Math.sin(t/2300)*.08,len=Math.max(W,H)*.8,spr=.34;dx.save();dx.translate(hx,hy);dx.fillStyle=gcache("lamp"+len,()=>{const lg=dx.createRadialGradient(0,0,0,0,0,len);lg.addColorStop(0,"rgba(0,0,0,1)");lg.addColorStop(.5,"rgba(0,0,0,.78)");lg.addColorStop(1,"rgba(0,0,0,0)");return lg});dx.beginPath();dx.moveTo(0,0);dx.arc(0,0,len,ang-spr,ang+spr);dx.closePath();dx.fill();dx.restore();
+  dx.save();dx.translate(dxp,dyp);dx.fillStyle=gcache("halo",()=>{const hg=dx.createRadialGradient(0,0,0,0,0,130);hg.addColorStop(0,"rgba(0,0,0,.92)");hg.addColorStop(1,"rgba(0,0,0,0)");return hg});dx.beginPath();dx.arc(0,0,130,0,7);dx.fill();dx.restore();
   cx.drawImage(dk,0,0,W,H);
-  cx.save();cx.globalCompositeOperation="lighter";const bg2=cx.createRadialGradient(hx,hy,0,hx,hy,len*.85);bg2.addColorStop(0,`rgba(225,250,255,${.17*deep})`);bg2.addColorStop(1,"rgba(225,250,255,0)");cx.fillStyle=bg2;cx.beginPath();cx.moveTo(hx,hy);cx.arc(hx,hy,len*.85,ang-spr*.8,ang+spr*.8);cx.closePath();cx.fill();
-  for(let i=0;i<14;i++){const a=ang+(((i*.37)%1)-.5)*spr*1.4,r=((t/40+i*61)%(len*.7))+30;cx.fillStyle=`rgba(255,255,255,${.35*deep*(1-r/(len*.7))})`;cx.beginPath();cx.arc(hx+Math.cos(a)*r,hy+Math.sin(a)*r,1.2,0,7);cx.fill()}cx.restore()}
+  cx.save();cx.globalCompositeOperation="lighter";cx.translate(hx,hy);cx.globalAlpha=deep;cx.fillStyle=gcache("beam"+len,()=>{const g=cx.createRadialGradient(0,0,0,0,0,len*.85);g.addColorStop(0,"rgba(225,250,255,.17)");g.addColorStop(1,"rgba(225,250,255,0)");return g});cx.beginPath();cx.moveTo(0,0);cx.arc(0,0,len*.85,ang-spr*.8,ang+spr*.8);cx.closePath();cx.fill();
+  cx.fillStyle="#fff";for(let i=0;i<14;i++){const a=ang+(((i*.37)%1)-.5)*spr*1.4,r=((t/40+i*61)%(len*.7))+30;cx.globalAlpha=.35*deep*(1-r/(len*.7));cx.beginPath();cx.arc(Math.cos(a)*r,Math.sin(a)*r,1.2,0,7);cx.fill()}cx.restore()}
  if(deep>.05){cx.save();cx.globalCompositeOperation="lighter";cx.globalAlpha=deep*.55;for(const col of["#8ff7ff","#a9ffcf"]){cx.fillStyle=col;cx.beginPath();for(const p of glow){if(p.c!==col||Math.sin(t/700+p.p)<0)continue;const x=p.x*W,y=((p.y-depth/4000)%1+1)%1*H;cx.moveTo(x+1.7,y);cx.arc(x,y,1.7,0,7)}cx.fill()}cx.restore();cx.globalAlpha=1}
- for(const c of vis){if(deep>.4&&GLOWY.has(c.k))creature(c.k,c.x,c.y,t,c.d,true,c.dir);if(c.k==="angler")lure(c.x,c.y,t,c.dir)}
+ for(const c of LIVE){if(!c.on)continue;if(deep>.4&&GLOWY.has(c.k))creature(c.k,c.x,c.y,t,c.d,true,c.dir);if(c.k==="angler")lure(c.x,c.y,t,c.dir)}
  // dech: bubliny z automatiky, jen když je potápěč pod vodou
  const dv=S.dv;let mx,my;if(dv){const[a,b]=rot2(38*1.18*dv.sc,1.18*dv.sc,dv.rot);mx=dv.x+a;my=dv.y+b}else[mx,my]=mouth(dxp,dyp,tilt);
  if(t>nextBreath&&my>sY+12&&S.m!=="deck"){nextBreath=t+1500+Math.random()*900;for(let i=0;i<6;i++)bub.push({x:mx,y:my,r:Math.random()*3+1.4,vy:Math.random()*.8+1,d:i*80,w:Math.random()*6})}
@@ -652,8 +689,21 @@ function draw(t){const dt=Math.min(t-lastT,50)||16;lastT=t;frameAvg=frameAvg*.95
  if(deep>0&&swim){cx.save();cx.globalCompositeOperation="lighter";cx.fillStyle="rgba(255,250,220,.95)";cx.beginPath();cx.arc(hx,hy,2.6,0,7);cx.fill();cx.restore()}
  cx.save();cx.globalCompositeOperation="lighter";for(let i=sparks.length-1;i>=0;i--){const s=sparks[i];s.x+=s.vx*dt/16;s.y+=s.vy*dt/16;s.vy+=.02;s.l-=dt/950;if(s.l<=0){sparks.splice(i,1);continue}cx.globalAlpha=s.l;cx.fillStyle=s.c;cx.shadowBlur=12;cx.shadowColor=s.c;cx.beginPath();cx.arc(s.x,s.y,s.r*s.l+.4,0,7);cx.fill()}cx.restore();
  cx.globalAlpha=.22*Math.min(1,Math.max(.25,(vTop-sY)/H))+deep*.3;cx.drawImage(VIG,0,0,W,H);cx.globalAlpha=1;
- const dmT=fmt(depth);if($("dm").textContent!==dmT)$("dm").textContent=dmT;$("mark").style.top=Math.min(depth/11000,1)*100+"%";
+ // HUD: text a značka hloubky se přepíšou jen při změně (formátování čísla i zápis do DOM stojí čas)
+ const dr=Math.round(depth);if(dr!==hudD){hudD=dr;dmEl.textContent=fmt(dr)}
+ const mk=Math.round(Math.min(depth/11000,1)*1000);if(mk!==hudM){hudM=mk;markEl.style.top=mk/10+"%"}
+ if(FPS)fpsMeter(t,performance.now()-t0);
  requestAnimationFrame(draw)}
+/* měřič plynulosti: adresa s ?fps ukáže snímky za sekundu, nejpomalejší snímek, čas kreslení a úroveň kvality Q */
+const FPS=/[?&]fps\b/.test(location.search);let fpsEl=null,fpsN=0,fpsT0=0,fpsMax=0,fpsJs=0;
+function fpsMeter(t,js){if(!fpsEl){fpsEl=document.createElement("div");fpsEl.style.cssText="position:fixed;left:8px;bottom:8px;z-index:9;font:600 11px/1.3 ui-monospace,monospace;color:#fff;background:rgba(0,0,0,.55);padding:4px 7px;border-radius:7px;pointer-events:none;white-space:pre";document.body.appendChild(fpsEl);fpsT0=t}
+ fpsN++;fpsJs+=js;fpsMax=Math.max(fpsMax,t-(fpsMeter.l||t));fpsMeter.l=t;
+ if(t-fpsT0>=1000){fpsEl.textContent=`${Math.round(fpsN*1000/(t-fpsT0))} fps · max ${Math.round(fpsMax)} ms\nkreslení ${(fpsJs/fpsN).toFixed(1)} ms · Q${Q}`;fpsN=0;fpsJs=0;fpsMax=0;fpsT0=t}}
+let hudD=-1,hudM=-1;const dmEl=$("dm"),markEl=$("mark");
+const GLOWY=new Set(["jelly","siph","lantern","hatchet","eel","vampire"]);
+const LIVE=LIFE.map(([k,d,xf,s])=>({k,d,xf,s,x:0,y:0,on:false,dir:s<0?-1:1}));
+const MLB=new Map();const mLabel=m=>{let s=MLB.get(m);if(!s){s=m.toLocaleString("cs-CZ")+" m";MLB.set(m,s)}return s};
+draw.good=0;draw.ups=0;
 requestAnimationFrame(draw);
 function burst(c,n){if(RM)return;const x=card.offsetLeft+card.offsetWidth/2,y=vTop+card.offsetTop+60;for(let i=0;i<n;i++){const a=Math.random()*Math.PI*2,s=Math.random()*4+1.5;sparks.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s-2,r:Math.random()*2.6+1,l:1,c})}}
 
@@ -663,7 +713,8 @@ const ARROW='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-w
 const LVN={1:"Lehká",2:"Střední",3:"Těžká",4:"Expert"};
 const FLAME='<svg viewBox="0 0 16 20" aria-hidden="true"><path fill="currentColor" d="M8 0c1 3.2 5.6 5.6 5.6 11A5.6 5.6 0 0 1 2.4 11c0-2.6 1.3-4.3 2.6-5.6.2 1.8 1 3 2.2 3.4C6.4 5.8 7.3 2.6 8 0z"/></svg>';
 const lvlFor=n=>n<=3?1:n<=7?2:n<=12?3:4;
-function swap(html,after){card.classList.add("out");setTimeout(()=>{stage.scrollTop=0;card.innerHTML=html;card.classList.remove("out","in");void card.offsetWidth;card.classList.add("in");after&&after()},170)}
+// výměna obsahu karty; nová výměna zruší nedokončenou předchozí (dvojí tapnutí nesmí přepsat novou obrazovku starou)
+function swap(html,after){clearTimeout(swap.t);card.classList.add("out");swap.t=setTimeout(()=>{swap.t=0;stage.scrollTop=0;card.innerHTML=html;CG.dirty=true;card.classList.remove("out","in");void card.offsetWidth;card.classList.add("in");after&&after()},170)}
 function o2(effect){const e=$("o2");if(run&&run.mode==="est"){e.classList.remove("low");e.innerHTML=`<span class="qc">${Math.max(1,Math.min(run.n,EST_N))}<small> / ${EST_N}</small></span>`;return}
  const n=run?run.o2:3;e.innerHTML=[0,1,2].map(i=>`<i class="${i>=n?"off":""}${effect&&effect.i===i?" "+effect.c:""}"></i>`).join("");e.classList.toggle("low",n===1);
  if(run&&run.mode==="hl"){const k=run.streak||0;e.insertAdjacentHTML("beforeend",`<span class="streak${k?"":" off"}${effect&&effect.hot?" hot":""}" aria-label="Série ${k}">${FLAME}<b>${k}</b></span>`)}}
@@ -675,8 +726,8 @@ function home(){run=null;o2();setDepth(0,true);stage.classList.remove("play");ca
   ["hl","#8ef0c6","Vyšší, nebo nižší?","Ťukni na to, čeho je víc. Rozdíly se zmenšují, chyba stojí bublinu kyslíku.",ms.hl.best],
   ["est","#63b6ff","Odhad","Deset otázek, odpovíš číslem. Čím přesnější odhad, tím hlouběji.",ms.est.best],
   ["kr","#ffd36e","Krillion","Napiš odpověď. Čím vzácnější, tím hlouběji. Ponor končí, až dojde kyslík.",st.best]];
- swap(`<h1>Krillion</h1><p class="lede">Vyber si, jak se dnes ponoříš.</p><div class="modes">${M.map(([k,c,t,d,b],i)=>`<button class="mode" type="button" data-m="${k}" style="--c:${c};--i:${i}"><span class="mt">${t}</span><span class="mr">${rec(b)}</span><span class="md">${d}</span></button>`).join("")}</div>`,
-  ()=>{for(const b of card.querySelectorAll(".mode"))b.onclick=()=>({hl:startHL,est:startEst,kr:start})[b.dataset.m]()})}
+ swap(`<button class="gear" id="gear" type="button" aria-label="Nastavení" title="Nastavení">${SLIDERS}</button><h1>Krillion</h1><p class="lede">Vyber si, jak se dnes ponoříš.</p><div class="modes">${M.map(([k,c,t,d,b],i)=>`<button class="mode" type="button" data-m="${k}" style="--c:${c};--i:${i}"><span class="mt">${t}</span><span class="mr">${rec(b)}</span><span class="md">${d}</span></button>`).join("")}</div>`,
+  ()=>{for(const b of card.querySelectorAll(".mode"))b.onclick=()=>openMode(b.dataset.m);$("gear").onclick=settings})}
 function nextPrompt(l){gen(l);gen(Math.min(4,l+1));
  while(aiQ[l].length&&tooSimilar(aiQ[l][0].q,st.used.slice(-400)))aiQ[l].shift(); // starší fronta od Clauda
  if(aiQ[l].length&&Math.random()<.55){const i=Math.max(0,aiQ[l].findIndex(p=>!run.fams.has("dom:"+p.d)));const p=aiQ[l].splice(i,1)[0];run.asked.add(p.q);run.fams.add("dom:"+p.d);run.lastKind="ai";st.used.push(p.q);save();return{q:p.q,ai:true}}
@@ -687,7 +738,7 @@ function launch(html,setup,first){lastZone="Sluneční zóna";target=0;o2();card
  // poloha lodi a hladiny se změří ještě s úvodní kartou, pak se karta přepne do herního rozložení
  const done=()=>{document.removeEventListener("pointerdown",skip,true);stage.classList.remove("intro");card.classList.remove("in");void card.offsetWidth;card.classList.add("in");first()};
  if(RM){S.m="dive";S.co=0;S.dv=null;depth=0}else{beginRoll(done);stage.classList.add("intro")}
- stage.classList.add("play");card.classList.remove("out","in");card.innerHTML=html;void card.offsetWidth;card.classList.add("in");
+ clearTimeout(swap.t);swap.t=0;stage.classList.add("play");card.classList.remove("out","in");card.innerHTML=html;CG.dirty=true;void card.offsetWidth;card.classList.add("in");
  const a=setup&&setup();
  // iOS otevře klávesnici jen při fokusu v rámci tapnutí → fokus hned teď, karta je zatím neviditelná
  if(a)try{a.focus({preventScroll:true})}catch(e){}
@@ -703,7 +754,8 @@ function start(){run={mode:"kr",o2:3,pts:0,n:0,ans:[],best:null,asked:new Set(),
   $("a").addEventListener("input",e=>{if(advT)e.target.value=""});
   gen(1);gen(2);return $("a")},ask)}
 function ask(){busy=false;advT=null;run.n++;run.lvl=lvlFor(run.n);const p=nextPrompt(run.lvl);run.q=p.q;run.ai=p.ai;
- limit=run.n>16?Math.max(10,15-(run.n-16)*.5):({1:25,2:21,3:18,4:15})[run.lvl];left=limit;
+ limit=run.n>16?Math.max(10,15-(run.n-16)*.5):({1:25,2:21,3:18,4:15})[run.lvl];
+ limit+=readT(run.q.length,45,10,5);left=limit; // dlouhé zadání = pár sekund navíc na přečtení
  const pn=$("pn");pn.className="panel";pn.onclick=null;pn.innerHTML=`<div style="animation:fade .45s both"><div class="qn">#${run.n} · ${LVN[run.lvl]}</div>${(()=>{const m=run.q.match(/^(.*) \((na písmeno .+|aspoň \d+ písmen)\)$/);return m?`<div class="q">${esc(m[1])}</div><div class="tag">${esc(m[2])}</div>`:`<div class="q">${esc(run.q)}</div>`})()}</div>`;
  if(run.n===4||run.n===8||run.n===13)toast(`Obtížnost: ${LVN[run.lvl]} · ×${MULT[run.lvl]} hloubky`);
  const a=$("a");a.value="";$("f").classList.remove("dim");$("sb").innerHTML=ARROW;$("h").textContent="";$("sk").style.visibility="";
@@ -720,47 +772,97 @@ function showRes(html){stopT();busy=true;const pn=$("pn");pn.className="panel re
  $("f").classList.add("dim");$("sb").innerHTML=ARROW;$("sk").style.visibility="hidden";$("h").textContent="";
  clearTimeout(advT);advT=setTimeout(advance,run.o2>0?2300:2700)}
 function win(r){const T=TIERS[r.tier],m=Math.round(T.p*MULT[run.lvl]);run.pts+=m;run.ans.push(r.tier+1);if(!run.best||r.tier>run.best.t||(r.tier===run.best.t&&run.lvl>run.best.l))run.best={t:r.tier,a:r.name,l:run.lvl};
- setDepth(run.pts*10);burst(T.c,12+r.tier*10);
+ setDepth(run.pts*10);burst(T.c,12+r.tier*10);buzz(r.tier>=3?[20,40,20]:12);
  let extra="";if(r.tier===4&&run.o2<3){run.o2++;o2({i:run.o2-1,c:"gain"});extra=" · <b>+1 kyslík</b>"}
  showRes(`<div class="tier" style="color:${T.c};text-shadow:0 0 34px ${T.c}88">${T.n}</div><div class="sub"><b>${esc(r.name)}</b> · vzácnost ${r.tier+1}/5 · +${fmt(m*10)}${extra}</div><div class="ladder">${TIERS.map((x,i)=>`<i class="${i<=r.tier?"on":""}" style="color:${T.c};--i:${i}"></i>`).join("")}</div>`)}
 function lose(why,r){stopT();run.o2--;run.ans.push(0);o2({i:run.o2,c:"pop"});hurt=1;
- const f=$("flash");f.classList.add("on");setTimeout(()=>f.classList.remove("on"),60);const fe=$("f");fe.classList.remove("shake");void fe.offsetWidth;fe.classList.add("shake");try{navigator.vibrate&&navigator.vibrate(60)}catch(e){}
- const ex=r&&r.top&&r.top.length?r.top:(localJudge(run.q,"")||{}).top;
- showRes(`<div class="tier" style="color:#ffb0a5;text-shadow:0 0 30px #ff7a6a77">−1 kyslík</div><div class="sub">${esc(why)}${ex&&ex.length?` · platilo by třeba <b>${ex.map(esc).join(", ")}</b>`:""}</div>`)}
+ const f=$("flash");f.classList.add("on");setTimeout(()=>f.classList.remove("on"),60);const fe=$("f");fe.classList.remove("shake");void fe.offsetWidth;fe.classList.add("shake");buzz([40,30,40]);
+ // ukázka platných odpovědí: dvě běžné a jedna z nejvzácnějších (u vestavěných témat)
+ const ex=r&&r.top&&r.top.length?r.top:(localJudge(run.q,"")||{}).top,it=DBQ.get(run.q),rare=it&&it.list.length>=6?it.list[it.list.length-1].show:"";
+ const tip=ex&&ex.length?` · platilo by třeba <b>${(rare?ex.slice(0,2):ex).map(esc).join(", ")}</b>${rare?` nebo vzácné <b>${esc(rare)}</b>`:""}`:"";
+ showRes(`<div class="tier" style="color:#ffb0a5;text-shadow:0 0 30px #ff7a6a77">${run.o2>0?"−1 kyslík":"Došel kyslík"}</div><div class="sub">${esc(why)}${tip}</div>`)}
 function advance(){if(!advT)return;clearTimeout(advT);advT=null;if(run.o2<=0)end();else ask()}
-function end(){stopT();const a=$("a");a&&a.blur();stage.classList.remove("play");const m=run.pts*10,rec=m>st.best;if(rec)st.best=m;st.runs++;save();
- const z=zoneOf(m),T=run.best?TIERS[run.best.t]:null;
- swap(`<div class="end"><div class="qn">Došel kyslík</div><div class="big">${fmt(m)}</div><div class="zone">${esc(z)}${rec&&m>0?" · nový rekord":""}</div>
- <div class="tcap">Vzácnost odpovědí (1 = běžná, 5 = nejvzácnější, ✕ = chyba)</div><div class="chips">${run.ans.map((v,i)=>`<span style="--i:${i};${v?`color:${TIERS[v-1].c};box-shadow:inset 0 0 0 1px ${TIERS[v-1].c}66`:"color:rgba(255,255,255,.35)"}">${v||"✕"}</span>`).join("")}</div>
- ${(()=>{const ok=run.ans.filter(v=>v);return ok.length?`<div class="avg">Průměrná vzácnost <b>${(ok.reduce((a,b)=>a+b,0)/ok.length).toLocaleString("cs-CZ",{maximumFractionDigits:1,minimumFractionDigits:1})} / 5</b></div>`:""})()}
- <div class="meta"><span>Otázek <b>${run.n}</b></span>${T?`<span>Nejvzácnější <b style="color:${T.c}">${esc(run.best.a)}</b></span>`:""}<span>Rekord <b>${fmt(st.best)}</b></span></div>
- <div class="row"><button class="btn" id="nx">Ponořit se znovu</button><button class="btn g" id="cp">Sdílet</button></div><button class="skip" id="md" type="button">Jiný režim</button></div>`,()=>{
-  if(rec&&m>0)burst("#ffd36e",70);
-  $("nx").onclick=start;$("md").onclick=home;
-  $("cp").onclick=async()=>{const sq=["⬛","🟩","🟧","🟦","🟪","🟨"];const txt=`Krillion · ${fmt(m)} · ${z}\n${run.ans.map(v=>sq[v]).join("")}`;try{await navigator.clipboard.writeText(txt);toast("Zkopírováno")}catch(e){toast("Kopírování nejde")}}});
- const r0=run;setTimeout(()=>{if(run===r0&&S.m==="dive")beginAscent()},700);run.o2=0}
+function end(){stopT();const a=$("a");a&&a.blur();stage.classList.remove("play");const m=run.pts*10,prev=st.best;if(m>st.best)st.best=m;st.runs++;pushScore(st,m);save();
+ const r0=run,T=r0.best?TIERS[r0.best.t]:null,ok=r0.ans.filter(v=>v),avg=ok.length?ok.reduce((a,b)=>a+b,0)/ok.length:0;
+ endCard({title:"Krillion · došel kyslík",m,prev,runs:st.runs,scores:st.scores,again:start,
+  stats:[["otázek",r0.n],["správně",ok.length],["průměrná vzácnost",avg?avg.toLocaleString("cs-CZ",{maximumFractionDigits:1,minimumFractionDigits:1})+" / 5":"–"]],
+  note:T?`<div class="best">Nejvzácnější odpověď <b style="color:${T.c}">${esc(r0.best.a)}</b></div>`:"",
+  body:`<div class="tcap">Vzácnost odpovědí (1 = běžná, 5 = nejvzácnější, ✕ = chyba)</div><div class="chips">${r0.ans.map((v,i)=>chip(i,v?TIERS[v-1].c:"",v||"✕")).join("")}</div>`,
+  share:(z,rec)=>{const sq=["⬛","🟩","🟧","🟦","🟪","🟨"];return`🤿 Krillion\n🌊 ${fmt(m)} · ${z}${rec?" · 🏆 nový rekord":""}\n${T?`💎 nejvzácnější: ${r0.best.a}\n`:""}${r0.ans.map(v=>sq[v]).join("")}`}});
+ run.o2=0}
 /* ---------- společné pro nové režimy ---------- */
-let ms=loadModes(localStorage);const saveM=()=>saveModes(localStorage,ms);
+let ms=loadModes(localStorage);const saveM=later(()=>saveModes(localStorage,ms),700);
+const flushAll=()=>{saveLS.flush();saveM.flush()};addEventListener("pagehide",flushAll);document.addEventListener("visibilitychange",()=>{if(document.hidden)flushAll()});
 const HL_T=15,EST_N=10,EST_T=30;
 /* časový pruh: zbývající čas z performance.now() (konec = start + limit), kreslí se v requestAnimationFrame přes
    transform: scaleX. Během vyhodnocování (busy) se čas zastaví a konec se posune o dobu pauzy. Smyčka skončí s otázkou. */
 let tm=null;
 function stopT(){if(tm){cancelAnimationFrame(tm.raf);tm=null}}
 function tick(sec,onEnd){stopT();limit=left=sec;const b0=$("bar"),p0=$("prog");if(b0)b0.style.transform="scaleX(1)";if(p0)p0.classList.remove("low","pause");
- const t={raf:0,end:performance.now()+sec*1000,pausedAt:0};tm=t;
+ const t={raf:0,end:performance.now()+sec*1000,pausedAt:0,prev:performance.now()};tm=t;
  const f=now=>{if(tm!==t)return;const b=$("bar"),p=$("prog");if(!b||!p){stopT();return}
+  // aplikace na pozadí (iPhone: přepnutí aplikace, zamčení) – snímky neběží, čas se nepočítá
+  if(now-t.prev>400&&!t.pausedAt)t.end+=now-t.prev-17;t.prev=now;
   if(busy){if(!t.pausedAt)t.pausedAt=now}else if(t.pausedAt){t.end+=now-t.pausedAt;t.pausedAt=0}
   if(p.classList.contains("pause")!==busy)p.classList.toggle("pause",busy);
-  left=Math.max(0,((t.pausedAt||now)-t.end)/-1000);b.style.transform=`scaleX(${left/limit})`;
+  left=Math.max(0,((t.pausedAt||now)-t.end)/-1000);const sx=(left/limit).toFixed(4);if(sx!==t.sx){t.sx=sx;b.style.transform="scaleX("+sx+")"}
   const low=left<6;if(p.classList.contains("low")!==low)p.classList.toggle("low",low);
   if(left<=0){stopT();onEnd();return}t.raf=requestAnimationFrame(f)};
  t.raf=requestAnimationFrame(f)}
-function ouch(){hurt=1;const f=$("flash");f.classList.add("on");setTimeout(()=>f.classList.remove("on"),60);try{navigator.vibrate&&navigator.vibrate(60)}catch(e){}}
-function share(btn,txt){btn.onclick=async()=>{try{await navigator.clipboard.writeText(txt);toast("Zkopírováno")}catch(e){toast("Kopírování nejde")}}}
+function ouch(){hurt=1;const f=$("flash");f.classList.add("on");setTimeout(()=>f.classList.remove("on"),60);buzz([40,30,40])}
 function ascendLater(){const r0=run;setTimeout(()=>{if(run===r0&&S.m==="dive")beginAscent()},700)}
-const endRow=`<div class="row"><button class="btn" id="nx">Ponořit se znovu</button><button class="btn g" id="cp">Sdílet</button></div><button class="skip" id="md" type="button">Jiný režim</button>`;
+/* ---------- návod při prvním spuštění režimu, nastavení, koncová obrazovka a sdílení ---------- */
+const SLIDERS='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2.2"/><circle cx="9" cy="17" r="2.2"/></svg>';
+const MODE_START={hl:()=>startHL(),est:()=>startEst(),kr:()=>start()};
+const HELP={
+ hl:["Vyšší, nebo nižší?","#8ef0c6",["Uvidíš dvě věci a otázku. Ťukni na tu, které je víc – je vyšší, starší, rychlejší…","Správně = hlouběji. Těžší otázka dá víc metrů, každých 6 správných v řadě přidá bonus.","Chyba nebo došlý čas stojí bublinu kyslíku. Máš tři."],MOBILE?"Po odpovědi uvidíš obě skutečné hodnoty i zdroj.":"Na počítači můžeš hrát i šipkami ← → (nebo 1 a 2)."],
+ est:["Odhad","#63b6ff",["Deset otázek s číselnou odpovědí, na každou máš 30 sekund.","Čím blíž skutečnosti, tím hlouběji: do ±5 % 1 000 m, dvakrát vedle 500 m, desetkrát vedle 50 m.","Velká čísla napiš jako „1,5 mil“ nebo „2 tis.“, nebo ťukni na tis. / mil. / mld."],"Kyslík tu nedochází – vždy odehraješ všech deset otázek."],
+ kr:["Krillion","#ffd36e",["Na každé zadání napiš jednu odpověď, třeba na „Jmenuj evropský stát“.","Čím vzácnější správná odpověď, tím hlouběji: Česko dá pár metrů, Lichtenštejnsko mnohem víc.","Chyba stojí bublinu kyslíku, nejvzácnější odpověď ji vrací. Překlepy a chybějící háčky nevadí."],"Ponor končí, až dojde kyslík."]};
+function openMode(k){if(SET.seen[k])MODE_START[k]();else helpCard(k)}
+// tlačítko „Ponořit se“ spouští hru přímo v tapnutí → iOS otevře klávesnici (viz launch)
+function helpCard(k,back){const[t,c,P,note]=HELP[k];
+ swap(`<div class="help" style="--c:${c}"><div class="qn">Jak se hraje</div><h2>${t}</h2><ol>${P.map((x,i)=>`<li style="--i:${i}"><i aria-hidden="true">${i+1}</i><span>${x}</span></li>`).join("")}</ol><p class="hnote">${note}</p>
+ <div class="row"><button class="btn" id="hgo" type="button">Ponořit se</button></div><button class="skip" id="hbk" type="button">${back?"Zpět do nastavení":"Jiný režim"}</button></div>`,()=>{
+  $("hgo").onclick=()=>{SET.seen[k]=1;saveSet();MODE_START[k]()};$("hbk").onclick=back||home;if(!MOBILE)try{$("hgo").focus({preventScroll:true})}catch(e){}})}
+function settings(){const sfx=window.KRILLION_SFX,row=(k,t,d)=>`<button class="sw" type="button" role="switch" aria-checked="${SET[k]}" data-k="${k}"><span><b>${t}</b><small>${d}</small></span><i aria-hidden="true"></i></button>`;
+ swap(`<div class="setc"><div class="qn">Krillion</div><h2>Nastavení</h2><div class="sets">
+ ${row("anim","Animace","Seskok z lodi, jiskry a přechody karet. Vypnuté = klidnější hra.")}
+ ${CANBUZZ?row("vib","Vibrace","Jemné zavibrování po odpovědi."):""}
+ ${sfx?row("snd","Zvuky","Šplouchnutí, bubliny a krátké znělky po odpovědi."):""}</div>
+ ${OSRM.matches?'<p class="hnote">V systému máš zapnuté omezení pohybu – hra se proto hýbe méně i se zapnutými animacemi.</p>':""}
+ <div class="hlp"><span>Jak se hraje</span>${Object.keys(HELP).map(k=>`<button type="button" class="chip" data-h="${k}">${HELP[k][0]}</button>`).join("")}</div>
+ <p class="sstat">Odehráno her: vyšší/nižší <b>${ms.hl.runs}</b> · odhad <b>${ms.est.runs}</b> · Krillion <b>${st.runs}</b></p>
+ <div class="row"><button class="btn" id="bk" type="button">Hotovo</button></div></div>`,()=>{
+  for(const b of card.querySelectorAll(".sw"))b.onclick=()=>{const k=b.dataset.k;SET[k]=!SET[k];saveSet();b.setAttribute("aria-checked",String(SET[k]));if(k==="anim")applyMotion();if(k==="vib"&&SET.vib)buzz(25);if(k==="snd"&&sfx&&sfx.set)sfx.set(SET.snd)};
+  for(const b of card.querySelectorAll("[data-h]"))b.onclick=()=>helpCard(b.dataset.h,settings);
+  $("bk").onclick=home})}
+// adresa hry do sdíleného textu (jen veřejná, ne localhost); bez ?fps a podobných parametrů
+const GAME_URL=/^https?:$/.test(location.protocol)&&!/^(localhost|127\.|0\.0\.0\.0|\[::1\]|192\.168\.|10\.)/.test(location.hostname)?location.origin+location.pathname.replace(/index\.html$/,""):"";
+function copyText(t){try{const a=document.createElement("textarea");a.value=t;a.setAttribute("readonly","");a.style.cssText="position:fixed;left:-9999px;top:0";document.body.appendChild(a);a.select();const ok=document.execCommand("copy");a.remove();return ok}catch(e){return false}}
+// na telefonu nabídka sdílení systému, jinak schránka (a záložní kopírování přes textarea)
+function shareBtn(btn,txt){btn.onclick=async()=>{const full=GAME_URL?txt+"\n"+GAME_URL:txt;
+ if(navigator.share&&MOBILE){try{await navigator.share({text:full});return}catch(e){if(e&&e.name==="AbortError")return}}
+ try{await navigator.clipboard.writeText(full);toast("Výsledek je ve schránce – pošli ho kamarádům")}catch(e){toast(copyText(full)?"Výsledek je ve schránce":"Kopírování nejde")}}}
+const pushScore=(o,m)=>{o.scores=(o.scores||[]).concat(Math.round(m)).slice(-20)};
+/* koncová karta: výsledek, rekord (nový / kolik chybělo), statistiky, průběh hry, sdílení. o.share(zóna, rekord) vrací text */
+function endCard(o){const{m,prev}=o,rec=m>prev&&m>0,z=zoneOf(m),L=o.scores.slice(-10),avg=L.length>1?L.reduce((a,b)=>a+b,0)/L.length:0;
+ const badge=rec?`<div class="rec">Nový rekord${prev>0?`<span> · předchozí ${fmt(prev)}</span>`:""}</div>`:prev>0?`<div class="recn">Rekord ${fmt(prev)} · chybělo ${fmt(prev-m)}</div>`:"";
+ swap(`<div class="end"><div class="qn">${esc(o.title)}</div><div class="big">${fmt(m)}</div><div class="zone">${esc(z)}</div>${badge}
+ <div class="stats">${o.stats.map(([k,v],i)=>`<div style="--i:${i}"><b>${v}</b><small>${k}</small></div>`).join("")}</div>${o.note||""}
+ ${o.body}<div class="hist">Hra č. ${o.runs}${avg?` · průměr posledních ${L.length} her ${fmt(avg)}`:""}</div>
+ <div class="row"><button class="btn" id="nx" type="button">Ponořit se znovu</button><button class="btn g" id="cp" type="button">Sdílet</button></div><button class="skip" id="md" type="button">Jiný režim</button></div>`,()=>{
+  if(rec){burst("#ffd36e",70);buzz([30,50,30,50,90])}
+  $("nx").onclick=o.again;$("md").onclick=home;shareBtn($("cp"),o.share(z,rec))});
+ ascendLater()}
+// čipy průběhu hry: barva = obtížnost nebo vzácnost, ✕ = chyba
+const chip=(i,c,t,title)=>`<span style="--i:${i};${c?`background:${c}2e;box-shadow:inset 0 0 0 1.5px ${c};color:#fff`:"background:rgba(0,10,30,.25);color:rgba(255,255,255,.55)"}"${title?` title="${title}"`:""}>${t}</span>`;
 const LVC={1:"#8ef0c6",2:"#63b6ff",3:"#c9a8ff",4:"#ffd36e"};
 const pct=r=>r<2?`${Math.max(5,Math.round((r-1)*100))} %`:`${fmtR(r)}×`;
+// sekundy navíc na přečtení dlouhého zadání: (délka textu − základ) / znaků za sekundu, nejvýš max
+const readT=(len,base,per,max)=>Math.min(max,Math.max(0,Math.round((len-base)/per)));
+// stupnice odhadu (logaritmická): uprostřed skutečnost, okraje = 1 000× míň / víc; pásma ±25 %, 2×, 10×
+function gauge(g,t,c){if(!(g>0))return"";const x=50+Math.max(-1,Math.min(1,Math.log10(g/t)/3))*50;
+ return`<div class="gauge" role="img" aria-label="Tvůj tip ${esc(estDiff(g,t))}"><span>1 000× míň</span><span>přesně</span><span>1 000× víc</span><i style="left:${x.toFixed(1)}%;background:${c};box-shadow:0 0 10px ${c}"></i></div>`}
 
 /* ---------- režim „Vyšší, nebo nižší?“ ---------- */
 function startHL(){run={mode:"hl",o2:3,pts:0,n:0,ok:0,res:[],items:new Set(),vc:{},lastV:[],streak:0,bestStreak:0};
@@ -771,7 +873,7 @@ function askHL(){busy=false;advT=null;card.onclick=null;run.n++;const p=pickPair
  const pn=$("pn");pn.className="panel hlq";pn.innerHTML=`<div style="animation:fade .45s both"><div class="qn">#${run.n} · <span class="lvl l${p.lvl}">${LVN[p.lvl]}</span> · ${esc(cat)}</div><div class="q">${esc(V[0])}</div></div>`;
  $("duel").innerHTML=[a,b].map((x,i)=>`<button class="opt" type="button" id="o${i}" style="--i:${i}"><b>${esc(x.n)}</b><span class="val" id="v${i}"></span></button>${i?"":'<span class="vs">nebo</span>'}`).join("");
  $("o0").onclick=()=>pickHL(0);$("o1").onclick=()=>pickHL(1);$("h").textContent="";
- tick(HL_T,()=>pickHL(-1))}
+ tick(HL_T+readT(V[0].length+a.n.length+b.n.length,50,12,3),()=>pickHL(-1))}
 // hodnota se „načítá“ od nuly (krátká animace po odpovědi)
 function countUp(el,x){const D=RM?0:750,t0=performance.now(),round=Number.isInteger(x.val)||x.val>=10;
  const f=t=>{const k=D?Math.min(1,Math.max(0,(t-t0)/D)):1,e=1-(1-k)**3,v=k>=1?x.val:round?Math.round(x.val*e):x.val*e;el.textContent=fmtHL(x,v);if(k<1)requestAnimationFrame(f)};requestAnimationFrame(f)}
@@ -782,9 +884,10 @@ function pickHL(i){if(busy||!run||run.mode!=="hl")return;busy=true;stopT();
  if(ok){const m=hlPoints(lv);run.pts+=m;run.ok++;run.streak++;run.bestStreak=Math.max(run.bestStreak,run.streak);const bonus=streakBonus(run.streak);run.pts+=bonus;setDepth(run.pts);
   const line=`${LVN[lv]} ×${fmtR(mult)} · <b>+${fmt(m)}</b> · rozdíl ${pct(r)}`;
   if(bonus){streakFx();o2({hot:1});head=`<div class="tier" style="color:#ffd36e;text-shadow:0 0 40px #ffd36e">Série ${run.streak}! +${fmt(bonus)}</div><div class="sub">Správně · ${line}</div>`}
-  else{o2();burst("#8ef0c6",10+lv*6);head=`<div class="tier" style="color:#8ef0c6;text-shadow:0 0 34px #8ef0c688">Správně</div><div class="sub">${line}</div>`}}
- else{run.streak=0;run.o2--;o2({i:run.o2,c:"pop"});ouch();const d=$("duel");d.classList.remove("shake");void d.offsetWidth;d.classList.add("shake");
-  head=`<div class="tier" style="color:#ffb0a5;text-shadow:0 0 30px #ff7a6a77">${i<0?"Došel čas":"−1 kyslík"}</div><div class="sub">${i<0?"−1 kyslík · ":""}víc má <b>${esc(W.n)}</b> · rozdíl ${pct(r)}</div>`}
+  else{o2();burst("#8ef0c6",10+lv*6);buzz(12);const k=run.streak,left=6-k%6;
+   head=`<div class="tier" style="color:#8ef0c6;text-shadow:0 0 34px #8ef0c688">Správně</div><div class="sub">${line}</div>${k>=2?`<div class="sub s2">Série ${k} · do bonusu ještě ${left} ${left===1?"správná":left<5?"správné":"správných"}</div>`:""}`}}
+ else{const lost=run.streak;run.streak=0;run.o2--;o2({i:run.o2,c:"pop"});ouch();const d=$("duel");d.classList.remove("shake");void d.offsetWidth;d.classList.add("shake");
+  head=`<div class="tier" style="color:#ffb0a5;text-shadow:0 0 30px #ff7a6a77">${run.o2<=0?"Došel kyslík":i<0?"Došel čas":"−1 kyslík"}</div><div class="sub">${i<0?(run.o2>0?"−1 kyslík · ":"došel čas · "):""}víc má <b>${esc(W.n)}</b> · rozdíl ${pct(r)}${lost>=3?` · série ${lost} skončila`:""}</div>`}
  run.res.push({ok,r,lv});
  const pn=$("pn");pn.className="panel hlq res";pn.innerHTML=`<div>${head}</div>`;
  const notes=run.p.fact?[]:a.note===b.note?[a.note]:[a.note&&`${a.n}: ${a.note}`,b.note&&`${b.n}: ${b.note}`];
@@ -792,16 +895,14 @@ function pickHL(i){if(busy||!run||run.mode!=="hl")return;busy=true;stopT();
  run.tapAt=performance.now()+450;card.onclick=()=>{if(advT&&performance.now()>run.tapAt)advHL()};
  clearTimeout(advT);advT=setTimeout(advHL,(ok?2500:3000)+(run.p.fact?1800:0))}
 function streakFx(){const f=$("flash");f.classList.add("gold","on");setTimeout(()=>f.classList.remove("on"),90);setTimeout(()=>f.classList.remove("gold"),900);
- burst("#ffd36e",MOBILE?50:80);ease=450;let k=0;const t=setInterval(()=>{kick=1;if(++k>8)clearInterval(t)},150);try{navigator.vibrate&&navigator.vibrate([30,40,30])}catch(e){}}
+ burst("#ffd36e",MOBILE?50:80);ease=450;let k=0;const t=setInterval(()=>{kick=1;if(++k>8)clearInterval(t)},150);buzz([30,40,30,40,60])}
 function advHL(){if(!advT)return;clearTimeout(advT);advT=null;card.onclick=null;if(run.o2<=0)endHL();else askHL()}
-function endHL(){stopT();card.onclick=null;stage.classList.remove("play");const h=ms.hl,m=run.pts,rec=m>h.best;if(rec)h.best=m;h.runs++;saveM();
- const z=zoneOf(m),okR=run.res.filter(x=>x.ok).map(x=>x.r),tight=okR.length?Math.min(...okR):0,rs=run.res.slice(-40);
- swap(`<div class="end"><div class="qn">Vyšší, nebo nižší? · došel kyslík</div><div class="big">${fmt(m)}</div><div class="zone">${esc(z)}${rec&&m>0?" · nový rekord":""}</div>
- <div class="tcap">Odpovědi (barva = obtížnost: lehká, střední, těžká, expert; ✕ = chyba)</div><div class="chips">${rs.map((x,i)=>`<span style="--i:${i};${x.ok?`color:${LVC[x.lv]};box-shadow:inset 0 0 0 1px ${LVC[x.lv]}66`:"color:rgba(255,255,255,.35)"}" title="${LVN[x.lv]}">${x.ok?"✓":"✕"}</span>`).join("")}</div>
- <div class="meta"><span>Správně <b>${run.ok}</b></span><span>Nejdelší série <b>${run.bestStreak}</b></span>${tight?`<span>Nejtěsnější rozdíl <b>${pct(tight)}</b></span>`:""}<span>Rekord <b>${fmt(h.best)}</b></span></div>${endRow}</div>`,()=>{
-  if(rec&&m>0)burst("#ffd36e",70);$("nx").onclick=startHL;$("md").onclick=home;
-  share($("cp"),`Krillion · Vyšší, nebo nižší? · ${fmt(m)} · správně ${run.ok}\n${run.res.map(x=>x.ok?"🟩":"⬛").join("")}`)});
- ascendLater()}
+function endHL(){stopT();card.onclick=null;stage.classList.remove("play");const h=ms.hl,m=run.pts,prev=h.best;if(m>h.best)h.best=m;h.runs++;pushScore(h,m);saveM();
+ const r0=run,okR=r0.res.filter(x=>x.ok).map(x=>x.r),tight=okR.length?Math.min(...okR):0,rs=r0.res.slice(-40),acc=r0.res.length?Math.round(r0.ok/r0.res.length*100):0;
+ endCard({title:"Vyšší, nebo nižší? · došel kyslík",m,prev,runs:h.runs,scores:h.scores,again:startHL,
+  stats:[["správně",r0.ok],["úspěšnost",acc+" %"],["nejdelší série",r0.bestStreak],["nejtěsnější rozdíl",tight?pct(tight):"–"]],
+  body:`<div class="tcap">Odpovědi podle obtížnosti: ${[1,2,3,4].map(l=>`<i class="lg" style="color:${LVC[l]}">●</i> ${LVN[l].toLowerCase()}`).join(" ")} · ✕ chyba</div><div class="chips">${rs.map((x,i)=>chip(i,x.ok?LVC[x.lv]:"",x.ok?"✓":"✕",LVN[x.lv])).join("")}</div>`,
+  share:(z,rec)=>{const sq={1:"🟩",2:"🟦",3:"🟪",4:"🟨"};return`🤿 Krillion · Vyšší, nebo nižší?\n🌊 ${fmt(m)} · ${z}${rec?" · 🏆 nový rekord":""}\n✅ ${r0.ok} správně · 🔥 nejdelší série ${r0.bestStreak}\n${rs.map(x=>x.ok?sq[x.lv]:"⬛").join("")}`}})}
 addEventListener("keydown",e=>{if(!run||run.mode!=="hl"||!stage.classList.contains("play")||stage.classList.contains("intro")||e.metaKey||e.ctrlKey||e.altKey)return;
  if(advT&&(e.key==="Enter"||e.key===" ")){e.preventDefault();advHL();return}
  const i={ArrowLeft:0,"1":0,ArrowRight:1,"2":1}[e.key];if(i!==undefined&&!busy){e.preventDefault();pickHL(i)}});
@@ -830,25 +931,23 @@ function askEst(){busy=false;advT=null;run.n++;run.mul=1;o2();const q=pickEst(ms
  const a=$("a");a.value="";$("f").classList.remove("dim");$("h").textContent="";$("un").textContent=SHORTU.has(q.u)?q.u:"";$("mu").style.visibility="";
  for(const o of card.querySelectorAll("#mu button"))o.classList.remove("on");
  try{a.focus({preventScroll:true})}catch(e){}
- tick(EST_T,()=>submitEst(true))}
+ tick(EST_T+readT(q.q.length,80,10,5),()=>submitEst(true))}
 function submitEst(timeout){const a=$("a");if(!a||busy||!run||run.mode!=="est")return;const g=estVal();
  if(!timeout&&!(g>0)){$("h").textContent="Napiš kladné číslo, třeba 1 500, 2,5 tis. nebo 3 mil.";const f=$("f");f.classList.remove("shake");void f.offsetWidth;f.classList.add("shake");try{a.focus({preventScroll:true})}catch(e){}return}
  busy=true;stopT();const q=run.q,s=estScore(g,q.v),T=ESTT[s.k];run.pts+=s.m;run.res.push({q,g,s});
- if(s.m){setDepth(run.pts);burst(T.c,Math.max(4,6+(3-s.k)*12))}else{ouch();const f=$("f");f.classList.remove("shake");void f.offsetWidth;f.classList.add("shake")}
+ if(s.m){setDepth(run.pts);burst(T.c,Math.max(4,6+(3-s.k)*12));buzz(s.k<=1?[15,30,15]:12)}else{ouch();const f=$("f");f.classList.remove("shake");void f.offsetWidth;f.classList.add("shake")}
  const pn=$("pn");pn.className="panel res";pn.innerHTML=`<div><div class="tier" style="color:${T.c};text-shadow:0 0 30px ${T.c}77">${T.n}</div>
  <div class="sub">Skutečnost <b>${esc(withU(q.v,q.u))}</b></div>
- <div class="sub">${g>0?`Tvůj tip ${esc(fmtNum(g))} · ${esc(estDiff(g,q.v))}`:"Došel čas"} · <b>+${fmt(s.m)}</b></div>${q.note?`<div class="src">${esc(q.note)}</div>`:""}</div>`;
+ <div class="sub">${g>0?`Tvůj tip ${esc(fmtNum(g))} · ${esc(estDiff(g,q.v))}`:"Došel čas"} · <b>+${fmt(s.m)}</b></div>${gauge(g,q.v,T.c)}${q.note?`<div class="src">${esc(q.note)}</div>`:""}</div>`;
  pn.onclick=advEst;$("f").classList.add("dim");$("mu").style.visibility="hidden";$("h").textContent="";
  try{a.focus({preventScroll:true})}catch(e){}
  clearTimeout(advT);advT=setTimeout(advEst,5500)}
 function advEst(){if(!advT)return;clearTimeout(advT);advT=null;if(run.n>=EST_N)endEst();else askEst()}
-function endEst(){stopT();const a=$("a");a&&a.blur();card.onclick=null;stage.classList.remove("play");const e=ms.est,m=run.pts,rec=m>e.best;if(rec)e.best=m;e.runs++;saveM();
- const z=zoneOf(m),ex=run.res.filter(x=>x.s.k===0).length,good=run.res.filter(x=>x.s.k<=1).length;
- swap(`<div class="end"><div class="qn">Odhad · ponor dokončen</div><div class="big">${fmt(m)}</div><div class="zone">${esc(z)}${rec&&m>0?" · nový rekord":""}</div>
- <div class="elist">${run.res.map((x,i)=>{const T=ESTT[x.s.k];return`<div class="er" style="--i:${i}"><span class="eq">${i+1}. ${esc(x.q.q)}</span><b class="em" style="color:${T.c}">+${fmt(x.s.m)}</b><span class="ev">tip <b>${x.g>0?esc(fmtNum(x.g)):"—"}</b> · skutečnost <b>${esc(withU(x.q.v,x.q.u))}</b>${x.g>0?" · "+esc(estDiff(x.g,x.q.v)):""}</span></div>`}).join("")}</div>
- <div class="meta"><span>Přesně <b>${ex}</b></span><span>Do ±25 % <b>${good}</b></span><span>Rekord <b>${fmt(e.best)}</b></span></div>${endRow}</div>`,()=>{
-  if(rec&&m>0)burst("#ffd36e",70);$("nx").onclick=startEst;$("md").onclick=home;
-  share($("cp"),`Krillion · Odhad · ${fmt(m)} · ${z}\n${run.res.map(x=>["🟨","🟩","🟦","🟪","⬛","⬛"][x.s.k]).join("")}`)});
- ascendLater()}
+function endEst(){stopT();const a=$("a");a&&a.blur();card.onclick=null;stage.classList.remove("play");const e=ms.est,m=run.pts,prev=e.best;if(m>e.best)e.best=m;e.runs++;pushScore(e,m);saveM();
+ const r0=run,ex=r0.res.filter(x=>x.s.k===0).length,good=r0.res.filter(x=>x.s.k<=1).length,ans=r0.res.filter(x=>x.g>0),dev=ans.length?Math.exp(ans.reduce((s,x)=>s+Math.log(x.s.q),0)/ans.length):0;
+ endCard({title:"Odhad · ponor dokončen",m,prev,runs:e.runs,scores:e.scores,again:startEst,
+  stats:[["přesně (±5 %)",ex],["do ±25 %",good],["průměrná odchylka",dev?(dev<1.05?"pod 5 %":pct(dev)):"–"]],
+  body:`<div class="elist">${r0.res.map((x,i)=>{const T=ESTT[x.s.k];return`<div class="er" style="--i:${i}"><span class="eq">${i+1}. ${esc(x.q.q)}</span><b class="em" style="color:${T.c}">+${fmt(x.s.m)}</b><span class="ev">tip <b>${x.g>0?esc(fmtNum(x.g)):"—"}</b> · skutečnost <b>${esc(withU(x.q.v,x.q.u))}</b>${x.g>0?" · "+esc(estDiff(x.g,x.q.v)):""}</span></div>`}).join("")}</div>`,
+  share:(z,rec)=>`🤿 Krillion · Odhad\n🌊 ${fmt(m)} · ${z}${rec?" · 🏆 nový rekord":""}\n🎯 přesně ${ex} · do ±25 % ${good}\n${r0.res.map(x=>["🟨","🟩","🟦","🟪","⬛","⬛"][x.s.k]).join("")}`})}
 o2();home();
 }

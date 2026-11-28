@@ -107,18 +107,20 @@ for (const x of M.HLX) if (!(x.lr >= Math.log(1.05) - 1e-12)) check(false, `pře
 
 // 6) odhad: otázka se zopakuje až po vystřídání všech (i přes reloady), v ponoru 10 různých
 {
-  const ls = fakeLS(); const cnt = new Map(M.ESTQ.map((q) => [q.q, 0])); let bad = null, inRun = null;
+  const ls = fakeLS(); const cnt = new Map(M.ESTQ.map((q) => [q.q, 0])); let bad = null, inRun = null, early = null;
   for (let g = 1; g <= 80; g++) {
     const ms = M.loadModes(ls); const run = { qs: new Set(), cats: [] }; const qs = new Set();
     for (let i = 0; i < 10; i++) {
       const p = M.pickEst(ms, run, rnd); const c = cnt.get(p.q), min = Math.min(...cnt.values());
       if (c > min) bad = bad || `hra ${g}: „${p.q}“ podruhé, ale jiná otázka má jen ${min}×`;
       if (qs.has(p.q)) inRun = `hra ${g}: „${p.q}“ dvakrát v jednom ponoru`;
+      if (g <= 30 && c > 0) early = early || `hra ${g}: „${p.q}“ se zopakovala už během prvních 30 her`;
       qs.add(p.q); cnt.set(p.q, c + 1);
     }
     M.saveModes(ls, ms);
   }
   check(!bad, "odhad – opakování: " + bad); check(!inRun, inRun);
+  check(!early, early); // 30 her × 10 otázek je méně než všech otázek → žádné opakování
   const v = [...cnt.values()]; console.log(`Odhad: 80 her, každá otázka ${Math.min(...v)}–${Math.max(...v)}×`);
 }
 
@@ -129,6 +131,8 @@ for (const x of M.HLX) if (!(x.lr >= Math.log(1.05) - 1e-12)) check(false, `pře
   ls.setItem("krillion-rezimy1", "{rozbité"); check(M.loadModes(ls).hl.best === 0, "rozbité uložení = čistý stav");
   ls.setItem("krillion-rezimy1", JSON.stringify({ hl: { pairs: "x", it: [], best: "12" }, est: { cnt: [], last: 5 } }));
   const m3 = M.loadModes(ls); check(Array.isArray(m3.hl.pairs) && !Array.isArray(m3.hl.it) && m3.hl.best === 12 && !Array.isArray(m3.est.cnt) && typeof m3.est.last === "object", "špatné typy v uložení se musí opravit");
+  ls.setItem("krillion-rezimy1", JSON.stringify({ hl: { scores: [100, "x", null, 250] }, est: { scores: "nic" } }));
+  const m4 = M.loadModes(ls); check(m4.hl.scores.join() === "100,250" && Array.isArray(m4.est.scores) && !m4.est.scores.length, "výsledky posledních her: jen čísla, jinak prázdné pole");
 }
 
 console.log(fail ? `\n${fail} testů režimů selhalo` : "Testy režimů prošly");
