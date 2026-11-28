@@ -950,4 +950,16 @@ function endEst(){stopT();const a=$("a");a&&a.blur();card.onclick=null;stage.cla
   body:`<div class="elist">${r0.res.map((x,i)=>{const T=ESTT[x.s.k];return`<div class="er" style="--i:${i}"><span class="eq">${i+1}. ${esc(x.q.q)}</span><b class="em" style="color:${T.c}">+${fmt(x.s.m)}</b><span class="ev">tip <b>${x.g>0?esc(fmtNum(x.g)):"—"}</b> · skutečnost <b>${esc(withU(x.q.v,x.q.u))}</b>${x.g>0?" · "+esc(estDiff(x.g,x.q.v)):""}</span></div>`}).join("")}</div>`,
   share:(z,rec)=>`🤿 Krillion · Odhad\n🌊 ${fmt(m)} · ${z}${rec?" · 🏆 nový rekord":""}\n🎯 přesně ${ex} · do ±25 % ${good}\n${r0.res.map(x=>["🟨","🟩","🟦","🟪","⬛","⬛"][x.s.k]).join("")}`})}
 o2();home();
+/* ---------- zvuky (src/audio.js): napojení na události hry obalem funkcí – herní logika zůstává beze změny ---------- */
+{const A=window.KRILLION_SFX;if(A){const after=(f,g)=>function(...a){const pre={hl:ms.hl.best,est:ms.est.best,kr:st.best,n:run&&run.res?run.res.length:0};const r=f.apply(this,a);try{g(pre,...a)}catch(e){}return r};
+ splash=after(splash,(p,x,big)=>A.play(big?"splash":"plop"));
+ win=after(win,(p,r)=>A.play(r.tier>=3?"rare":"ok"));
+ lose=after(lose,()=>A.play("bad"));
+ pickHL=after(pickHL,p=>{if(!run||!run.res||run.res.length===p.n)return;const x=run.res[run.res.length-1];if(!x.ok)A.play("bad");else if(!streakBonus(run.streak))A.play(x.lv>=3?"rare":"ok")});
+ streakFx=after(streakFx,()=>A.play("streak"));
+ submitEst=after(submitEst,p=>{if(!run||!run.res||run.res.length===p.n)return;const k=run.res[run.res.length-1].s.k;A.play(k<=1?"rare":k<=3?"ok":"bad")});
+ setDepth=after(setDepth,(p,m)=>{if(m>0&&Math.random()<.8)A.play("bubble")});
+ end=after(end,p=>{if(st.best>p.kr)setTimeout(()=>A.play("record"),400)});
+ endHL=after(endHL,p=>{if(ms.hl.best>p.hl)setTimeout(()=>A.play("record"),400)});
+ endEst=after(endEst,p=>{if(ms.est.best>p.est)setTimeout(()=>A.play("record"),400)})}}
 }

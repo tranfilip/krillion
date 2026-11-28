@@ -114,6 +114,11 @@ button:focus-visible{outline:2px solid #fff;outline-offset:3px}
 .meta b{color:var(--ink);font-weight:650}
 .toast{position:fixed;left:50%;top:calc(max(12px,env(safe-area-inset-top)) + 74px);transform:translate(-50%,-12px) scale(.96);opacity:0;transition:all .55s cubic-bezier(.2,1.4,.3,1);z-index:4;--r:99px;padding:9px 18px;font-size:14px;font-weight:600;pointer-events:none;white-space:nowrap}
 .toast.on{opacity:1;transform:translate(-50%,0)}
+/* přepínač zvuku (src/audio.js): vlevo nahoře, mimo kartu; během seskoku schovaný */
+.sndb{position:fixed;left:max(12px,env(safe-area-inset-left));top:max(14px,env(safe-area-inset-top));z-index:4;width:44px;height:44px;--r:99px;border:0;padding:0;display:grid;place-items:center;color:var(--ink);cursor:pointer;transition:opacity .3s,transform .2s cubic-bezier(.2,1.6,.4,1)}
+.sndb svg{width:20px;height:20px}.sndb[aria-pressed="false"]{color:var(--mut)}.sndb:active{transform:scale(.9)}
+body:has(.stage.intro) .sndb{opacity:0;pointer-events:none}
+@media(max-width:380px){.sndb{width:38px;height:38px}}
 @media(pointer:coarse){.glass{-webkit-backdrop-filter:none;backdrop-filter:none;background:linear-gradient(180deg,rgba(150,215,240,.34),rgba(40,110,160,.30) 45%,rgba(10,40,80,.42));will-change:auto}.play .card{background:linear-gradient(180deg,rgba(120,195,230,.38),rgba(20,70,120,.55) 50%,rgba(6,28,60,.62))}.pill{background:linear-gradient(180deg,rgba(150,215,240,.38),rgba(20,70,120,.5))}#sea{will-change:transform}.card.in{animation-duration:.35s}.glass::after{animation:none}.o2.low i:not(.off){animation:none;box-shadow:inset 0 0 0 1px #ffb3a8,0 0 14px #ff8a7a}}
 @media(prefers-reduced-motion:reduce){*,*::after{animation:none!important;transition:none!important}}
 /* úvodní skok z lodi: karta je už v DOM (kvůli fokusu inputu na iOS), ale ještě není vidět */
