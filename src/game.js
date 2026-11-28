@@ -908,6 +908,14 @@ function endHL(){stopT();card.onclick=null;stage.classList.remove("play");const 
 addEventListener("keydown",e=>{if(!run||run.mode!=="hl"||!stage.classList.contains("play")||stage.classList.contains("intro")||e.metaKey||e.ctrlKey||e.altKey)return;
  if(advT&&(e.key==="Enter"||e.key===" ")){e.preventDefault();advHL();return}
  const i={ArrowLeft:0,"1":0,ArrowRight:1,"2":1}[e.key];if(i!==undefined&&!busy){e.preventDefault();pickHL(i)}});
+/* přístupnost: výsledek odpovědi a nová otázka se čtou čtečce obrazovky (aria-live), na počítači dostane po výměně karty
+   fokus první tlačítko (Enter / mezerník hned funguje), šipky nahoru a dolů procházejí karty režimů */
+new MutationObserver(()=>{const pn=$("pn");if(pn&&!pn.hasAttribute("aria-live")){pn.setAttribute("aria-live","polite");pn.setAttribute("aria-atomic","true")}
+ const d=$("duel");if(d)d.setAttribute("aria-label","Vyber jednu z možností");
+ if(MOBILE||stage.classList.contains("play"))return;const a=document.activeElement;if(a&&a!==document.body&&card.contains(a))return;
+ const b=card.querySelector(".mode,.btn");if(b)try{b.focus({preventScroll:true})}catch(e){}}).observe(card,{childList:true});
+addEventListener("keydown",e=>{if(stage.classList.contains("play")||!(e.key==="ArrowDown"||e.key==="ArrowUp"))return;const m=[...card.querySelectorAll(".mode")],i=m.indexOf(document.activeElement);
+ if(i<0)return;e.preventDefault();m[(i+(e.key==="ArrowDown"?1:m.length-1))%m.length].focus()});
 
 /* ---------- režim „Odhad“ ---------- */
 const ESTT=[{n:"Přesně!",c:"#ffd36e"},{n:"Skoro!",c:"#8ef0c6"},{n:"Blízko",c:"#63b6ff"},{n:"Daleko",c:"#c9a8ff"},{n:"Úplně vedle",c:"#ffb0a5"},{n:"Bez odpovědi",c:"#ffb0a5"}];
